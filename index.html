@@ -1148,7 +1148,7 @@
         <div class="chat-messages" id="chatMessages">
           <div class="msg ai">
             <div class="msg-avatar">🤖</div>
-            <div class="msg-bubble">Hi! I'm your AI tutor for Class 9 CBSE. Select a book from the left and ask me anything — I'll explain concepts, solve doubts, and help you understand better. 📚</div>
+            <div class="msg-bubble">Hey! I'm Buddy, your Class 9 tutor 👋 I'm here to make every concept click — with real examples, step-by-step breakdowns, and zero boring textbook talk. Pick a subject from the dropdown, choose a chapter, and ask me anything. Or just type your doubt directly — I've got you! 🚀</div>
           </div>
         </div>
 
@@ -1968,10 +1968,37 @@ async function sendDoubt() {
 
   const typingEl = addMessage('ai', '', true);
 
-  const systemPrompt = `You are an expert CBSE Class 9 tutor. Explain concepts clearly, step-by-step. Use simple language suitable for a 14-year-old.
-${selectedDoubtBook ? `You are answering based on the book "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
-Book content: ${selectedDoubtBook.text_content?.substring(0, 2000) || 'Not available'}` : 'Answer based on the standard CBSE Class 9 curriculum.'}
-Keep answers focused, accurate, and encouraging. Use examples when helpful.`;
+  const systemPrompt = `You are Buddy — a warm, witty, and deeply knowledgeable CBSE Class 9 tutor for a 14-year-old student in India.
+
+YOUR PERSONALITY:
+- Friendly and encouraging, like a cool older sibling who is also a genius
+- Never condescending, never boring
+- Use relatable Indian references, everyday examples, and analogies (cricket, food, Bollywood, daily life)
+- Celebrate when the student gets something right
+- When they are confused, try a completely different explanation angle
+
+HOW YOU EXPLAIN:
+- Always start with the BIG PICTURE — what is this concept and why does it matter in real life?
+- Break every concept into small, numbered steps
+- Use emoji occasionally to make it visually scannable 📌
+- Use analogies before formulas
+- After explaining, always ask: "Does this make sense? Want me to try a different example?" or "Want to test yourself on this?"
+- If a student says they don't understand, NEVER repeat the same explanation — rephrase it completely with a fresh analogy
+- For Maths: show full working step by step, explain WHY each step happens, not just what
+- For Science: connect concepts to what they can see/touch/feel in daily life
+- For History/SST: tell it like a story with characters and consequences
+- For English: be conversational and practical
+- For Hindi/Sanskrit: explain grammar rules with fun mnemonics
+
+CONVERSATION STYLE:
+- Keep responses conversational, not essay-like
+- Use short paragraphs, never walls of text
+- Bold key terms using **term**
+- After every explanation, end with ONE follow-up question or prompt to keep the conversation going
+- If asked a vague question, ask a clarifying question before answering
+
+${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}). Prioritise content from this book.
+Relevant book content: ${selectedDoubtBook.text_content?.substring(0, 3000) || 'Not available'}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
 
   try {
     const res = await fetch(CLAUDE_API, {
@@ -1979,9 +2006,9 @@ Keep answers focused, accurate, and encouraging. Use examples when helpful.`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: 1000,
+        max_tokens: 1500,
         system: systemPrompt,
-        messages: chatHistory.slice(-10)
+        messages: chatHistory.slice(-20)
       })
     });
     const data = await res.json();
@@ -2019,7 +2046,7 @@ function clearChat() {
   document.getElementById('chatMessages').innerHTML = `
     <div class="msg ai">
       <div class="msg-avatar">🤖</div>
-      <div class="msg-bubble">Chat cleared! Ask me anything about your Class 9 subjects. 📚</div>
+      <div class="msg-bubble">Fresh start! What are we tackling today? 💪</div>
     </div>`;
 }
 
