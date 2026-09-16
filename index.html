@@ -1300,6 +1300,7 @@ function navigate(page) {
   const tabs = ['dashboard','books','quiz','flashcards','doubt'];
   document.querySelectorAll('.nav-tab')[tabs.indexOf(page)].classList.add('active');
   if (page === 'dashboard') renderDashboard();
+  if (page === 'books') renderBooks();
   if (page === 'quiz') renderQuizSetup();
   if (page === 'flashcards') renderFCSetup();
   if (page === 'doubt') renderDoubtBooks();
