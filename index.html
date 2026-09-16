@@ -905,6 +905,7 @@
   .tag-sst { background: rgba(245,158,11,0.15); color: #fbbf24; }
   .tag-english { background: rgba(239,68,68,0.15); color: #f87171; }
   .tag-hindi { background: rgba(168,85,247,0.15); color: #c084fc; }
+  .tag-sanskrit { background: rgba(249,115,22,0.15); color: #fb923c; }
 
   .toast {
     position: fixed; bottom: 24px; right: 24px; z-index: 999;
@@ -1196,7 +1197,7 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://vbqjtpfqrktwgfefzmbf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicWp0cGZxcmt0d2dmZWZ6bWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDU5MjAsImV4cCI6MjEwNTEyMTkyMH0._Obsduv7-cHn52jg6-Lsg1DVfdn6_khaYHHjBfT1NBE';
-const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_API = '/api/claude';
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
 const SUBJECTS = [
@@ -1204,7 +1205,8 @@ const SUBJECTS = [
   { name: 'Science', emoji: '🔬', color: '#10b981', tag: 'tag-science' },
   { name: 'Social Studies', emoji: '🌍', color: '#f59e0b', tag: 'tag-sst' },
   { name: 'English', emoji: '📖', color: '#ef4444', tag: 'tag-english' },
-  { name: 'Hindi', emoji: '🇮🇳', color: '#a855f7', tag: 'tag-hindi' }
+  { name: 'Hindi', emoji: '🇮🇳', color: '#a855f7', tag: 'tag-hindi' },
+  { name: 'Sanskrit', emoji: '🕉️', color: '#f97316', tag: 'tag-sanskrit' }
 ];
 
 // ==================== STATE ====================
@@ -1403,7 +1405,7 @@ function renderTodayPlan() {
 }
 
 function getTagClass(subject) {
-  const map = { 'Mathematics': 'tag-math', 'Science': 'tag-science', 'Social Studies': 'tag-sst', 'English': 'tag-english', 'Hindi': 'tag-hindi' };
+  const map = { 'Mathematics': 'tag-math', 'Science': 'tag-science', 'Social Studies': 'tag-sst', 'English': 'tag-english', 'Hindi': 'tag-hindi', 'Sanskrit': 'tag-sanskrit' };
   return map[subject] || 'tag-math';
 }
 
@@ -1516,7 +1518,7 @@ function renderBooks() {
 }
 
 function getSubjectEmoji(sub) {
-  const map = { 'Mathematics': '📐', 'Science': '🔬', 'Social Studies': '🌍', 'English': '📖', 'Hindi': '📕' };
+  const map = { 'Mathematics': '📐', 'Science': '🔬', 'Social Studies': '🌍', 'English': '📖', 'Hindi': '📕', 'Sanskrit': '🕉️' };
   return map[sub] || '📚';
 }
 
@@ -1598,9 +1600,10 @@ async function processPDF(file) {
 
 function detectSubject(filename, text) {
   const f = filename.toLowerCase() + text.toLowerCase().substring(0, 500);
+  if (f.includes('sanskrit') || f.includes('संस्कृत')) return 'Sanskrit';
   if (f.includes('math') || f.includes('algebra') || f.includes('geometry') || f.includes('polynomial')) return 'Mathematics';
+  if (f.includes('social science') || f.includes('social_science') || f.includes('history') || f.includes('geography') || f.includes('civics') || f.includes('economics') || f.includes('sst')) return 'Social Studies';
   if (f.includes('science') || f.includes('physics') || f.includes('chemistry') || f.includes('biology')) return 'Science';
-  if (f.includes('history') || f.includes('geography') || f.includes('social') || f.includes('civics') || f.includes('economics')) return 'Social Studies';
   if (f.includes('english') || f.includes('grammar') || f.includes('literature')) return 'English';
   if (f.includes('hindi') || f.includes('हिंदी')) return 'Hindi';
   return 'General';
@@ -1638,7 +1641,7 @@ Make questions clear, concise, and exam-relevant. Include definitions, formulas,
   try {
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
@@ -1707,7 +1710,7 @@ Respond ONLY with valid JSON, no markdown:
   try {
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
@@ -1961,7 +1964,7 @@ Keep answers focused, accurate, and encouraging. Use examples when helpful.`;
   try {
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         max_tokens: 1000,
