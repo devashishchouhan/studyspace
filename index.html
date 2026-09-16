@@ -2035,6 +2035,39 @@ function removeImage() {
   document.getElementById('imagePreview').src = '';
 }
 
+
+// Smart chunking — finds most relevant pages for a query
+function getRelevantChunks(text, query, maxChars) {
+  maxChars = maxChars || 15000;
+  if (!text) return 'Not available';
+  var pagePattern = /\[PAGE \d+\]/g;
+  var pageLabels = text.match(pagePattern) || [];
+  var pages = text.split(pagePattern);
+  if (pages.length <= 1) return text.substring(0, maxChars);
+  var keywords = query.toLowerCase().split(/\s+/).filter(function(w){ return w.length > 2; });
+  var scored = pages.map(function(pageText, i) {
+    var lower = pageText.toLowerCase();
+    var score = keywords.reduce(function(s, kw) {
+      var escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var matches = (lower.match(new RegExp(escaped, 'g')) || []).length;
+      return s + matches;
+    }, 0);
+    return { pageText: pageText, label: pageLabels[i-1] || '', score: score, index: i };
+  });
+  var topPages = scored
+    .filter(function(p){ return p.score > 0; })
+    .sort(function(a,b){ return b.score - a.score; })
+    .slice(0, 8)
+    .sort(function(a,b){ return a.index - b.index; });
+  if (!topPages.length) return text.substring(0, maxChars);
+  var result = '';
+  for (var j = 0; j < topPages.length; j++) {
+    result += topPages[j].label + '\n' + topPages[j].pageText + '\n';
+    if (result.length >= maxChars) break;
+  }
+  return result.substring(0, maxChars);
+}
+
 async function sendDoubt() {
   const input = document.getElementById('chatInput');
   const question = input.value.trim();
@@ -2096,8 +2129,10 @@ CONVERSATION STYLE:
 - After every explanation, end with ONE follow-up question or prompt to keep the conversation going
 - If asked a vague question, ask a clarifying question before answering
 
-${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}). Prioritise content from this book.
-Relevant book content: ${selectedDoubtBook.text_content?.substring(0, 20000) || 'Not available'}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
+${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
+The most relevant pages from this book for the question are below — answer using these.
+Relevant pages:
+${getRelevantChunks(selectedDoubtBook.text_content, question)}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
 
   try {
     const res = await fetch(CLAUDE_API, {
