@@ -1531,7 +1531,10 @@ function renderBooks() {
       <span class="book-emoji">${getSubjectEmoji(b.subject)}</span>
       <div class="book-title">${b.name}</div>
       <div class="book-meta">${b.subject || 'Unknown subject'} · ${b.pages || 0} pages</div>
-      <div class="book-status ready">Ready</div>
+      <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+        <div class="book-status ready">Ready</div>
+        <button onclick="event.stopPropagation();reuploadBook('${b.id}')" style="font-size:10px;font-weight:500;padding:3px 8px;border-radius:20px;background:rgba(99,102,241,0.12);color:var(--accent);border:1px solid rgba(99,102,241,0.2);cursor:pointer;font-family:inherit" title="Re-extract with page markers">↻ Re-extract</button>
+      </div>
     </div>`).join('');
 }
 
@@ -1566,17 +1569,27 @@ async function processPDF(file) {
   grid.prepend(tempCard);
 
   try {
-    // Extract text with PDF.js
+    // Extract text with PDF.js — with page markers
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const pages = pdf.numPages;
     let fullText = '';
 
-    for (let i = 1; i <= Math.min(pages, 50); i++) {
+    for (let i = 1; i <= Math.min(pages, 80); i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      fullText += content.items.map(item => item.str).join(' ') + '\n';
-      const pct = Math.round((i / Math.min(pages, 50)) * 100);
+      // Group text items by line using transform y-position
+      const items = content.items;
+      let pageText = '';
+      let lastY = null;
+      for (const item of items) {
+        const y = item.transform ? item.transform[5] : null;
+        if (lastY !== null && Math.abs(y - lastY) > 5) pageText += '\n';
+        pageText += item.str;
+        lastY = y;
+      }
+      fullText += `\n[PAGE ${i}]\n${pageText.trim()}\n`;
+      const pct = Math.round((i / Math.min(pages, 80)) * 100);
       tempCard.querySelector('div').textContent = `${pct}% extracted...`;
     }
 
@@ -1588,7 +1601,7 @@ async function processPDF(file) {
       name: file.name.replace('.pdf', ''),
       subject,
       pages,
-      text_content: fullText.substring(0, 50000) // Cap at 50k chars
+      text_content: fullText.substring(0, 80000)
     };
 
     let saved;
@@ -1627,12 +1640,28 @@ function detectSubject(filename, text) {
   return 'General';
 }
 
-async function deleteBook(id) {
-  if (!confirm('Delete this book and all its flashcards?')) return;
+async function reuploadBook(id) {
+  const book = books.find(b => b.id === id);
+  if (!book) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // Delete old, re-process
+    await deleteBook(id, true);
+    await processPDF(file);
+  };
+  input.click();
+}
+
+async function deleteBook(id, silent = false) {
+  if (!silent && !confirm('Delete this book and all its flashcards?')) return;
   try { await sbFetch(`books?id=eq.${id}`, 'DELETE'); } catch(e) {}
   books = books.filter(b => b.id !== id);
   renderBooks();
-  showToast('Book deleted', 'success');
+  if (!silent) showToast('Book deleted', 'success');
 }
 
 function openBook(id) {
@@ -1649,7 +1678,7 @@ async function generateFlashcardsForBook(book) {
   const prompt = `You are a CBSE Class 9 teacher. From the following textbook content, generate 15 high-quality flashcards for students.
 
 Subject: ${book.subject}
-Content: ${book.text_content.substring(0, 3000)}
+Content: ${book.text_content.substring(0, 8000)}
 
 Respond ONLY with valid JSON array, no markdown:
 [{"front": "question/term", "back": "answer/definition"}, ...]
@@ -1713,7 +1742,7 @@ async function startQuiz() {
   document.getElementById('quizQuestion').textContent = 'Generating questions with AI...';
   document.getElementById('quizChoices').innerHTML = '';
 
-  const textContent = book ? book.text_content.substring(0, 3000) : '';
+  const textContent = book ? book.text_content.substring(0, 8000) : '';
 
   const prompt = `You are a CBSE Class 9 ${subject} teacher. Generate ${count} multiple choice questions.
 ${textContent ? `Use this book content: ${textContent}` : `Use standard CBSE Class 9 ${subject} curriculum.`}
@@ -2046,7 +2075,7 @@ CONVERSATION STYLE:
 - If asked a vague question, ask a clarifying question before answering
 
 ${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}). Prioritise content from this book.
-Relevant book content: ${selectedDoubtBook.text_content?.substring(0, 3000) || 'Not available'}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
+Relevant book content: ${selectedDoubtBook.text_content?.substring(0, 8000) || 'Not available'}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
 
   try {
     const res = await fetch(CLAUDE_API, {
