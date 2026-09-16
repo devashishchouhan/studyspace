@@ -1155,17 +1155,9 @@
           </div>
         </div>
 
-        <div class="chat-input-area" style="flex-direction:column;gap:8px">
-          <div id="imagePreviewArea" style="display:none;position:relative;width:fit-content">
-            <img id="imagePreview" style="max-height:80px;max-width:200px;border-radius:8px;border:1px solid var(--border-light)" />
-            <button onclick="removeImage()" style="position:absolute;top:-6px;right:-6px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:white;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
-          </div>
-          <div style="display:flex;gap:10px;align-items:flex-end;width:100%">
-            <button onclick="document.getElementById('imageInput').click()" style="background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:all 0.15s" title="Upload image" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border-light)';this.style.color='var(--text-muted)'">📷</button>
-            <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
-            <textarea class="chat-input" id="chatInput" placeholder="Ask a doubt or paste a screenshot..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDoubt()}" oninput="autoResize(this)" onpaste="handlePaste(event)"></textarea>
-            <button class="chat-send" id="chatSendBtn" onclick="sendDoubt()">↑</button>
-          </div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" id="chatInput" placeholder="Ask a doubt..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDoubt()}" oninput="autoResize(this)"></textarea>
+          <button class="chat-send" id="chatSendBtn" onclick="sendDoubt()">↑</button>
         </div>
       </div>
     </div>
@@ -1217,8 +1209,8 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://vbqjtpfqrktwgfefzmbf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicWp0cGZxcmt0d2dmZWZ6bWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDU5MjAsImV4cCI6MjEwNTEyMTkyMH0._Obsduv7-cHn52jg6-Lsg1DVfdn6_khaYHHjBfT1NBE';
-const CLAUDE_API = '/api/gemini';
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const CLAUDE_API = '/api/groq';
+const GROQ_MODEL = 'llama-3.1-70b-versatile';
 
 const SUBJECTS = [
   { name: 'Mathematics', emoji: '📐', color: '#6366f1', tag: 'tag-math' },
@@ -1692,7 +1684,7 @@ Make questions clear, concise, and exam-relevant. Include definitions, formulas,
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: GEMINI_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = data.content[0].text;
@@ -1761,7 +1753,7 @@ Respond ONLY with valid JSON, no markdown:
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: GEMINI_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = data.content[0].text;
@@ -1993,53 +1985,6 @@ function selectDoubtBook(id) {
   document.getElementById('chatBookSub').textContent = sub;
 }
 
-let pendingImage = null; // { base64, mediaType }
-
-function handleImageUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const base64 = e.target.result.split(',')[1];
-    const mediaType = file.type;
-    pendingImage = { base64, mediaType };
-    document.getElementById('imagePreview').src = e.target.result;
-    document.getElementById('imagePreviewArea').style.display = 'block';
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
-}
-
-function handlePaste(event) {
-  const items = event.clipboardData?.items;
-  if (!items) return;
-  for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      event.preventDefault();
-      const file = item.getAsFile();
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target.result.split(',')[1];
-        const mediaType = item.type;
-        pendingImage = { base64, mediaType };
-        document.getElementById('imagePreview').src = e.target.result;
-        document.getElementById('imagePreviewArea').style.display = 'block';
-        showToast('Screenshot pasted ✓', 'success');
-      };
-      reader.readAsDataURL(file);
-      break;
-    }
-  }
-}
-
-function removeImage() {
-  pendingImage = null;
-  document.getElementById('imagePreviewArea').style.display = 'none';
-  document.getElementById('imagePreview').src = '';
-}
-
-
-// Smart chunking — finds most relevant pages for a query
 function getRelevantChunks(text, query, maxChars) {
   maxChars = maxChars || 15000;
   if (!text) return 'Not available';
@@ -2074,29 +2019,14 @@ function getRelevantChunks(text, query, maxChars) {
 async function sendDoubt() {
   const input = document.getElementById('chatInput');
   const question = input.value.trim();
-  if ((!question && !pendingImage) || isAILoading) return;
+  if (!question || isAILoading) return;
 
-  const hasImage = !!pendingImage;
-  const imageData = pendingImage;
-  const displayText = question || '📷 Image sent';
 
   input.value = '';
   input.style.height = 'auto';
-  addMessage('user', displayText, false, hasImage ? document.getElementById('imagePreview').src : null);
+  addMessage('user', question, false, null);
 
-  // Build message content for API
-  let userContent;
-  if (hasImage) {
-    userContent = [
-      { type: 'image', source: { type: 'base64', media_type: imageData.mediaType, data: imageData.base64 } },
-      { type: 'text', text: question || 'Please explain what is in this image and help me understand it.' }
-    ];
-  } else {
-    userContent = question;
-  }
-
-  chatHistory.push({ role: 'user', content: userContent });
-  removeImage();
+  chatHistory.push({ role: 'user', content: question });
 
   isAILoading = true;
   document.getElementById('chatSendBtn').disabled = true;
@@ -2144,7 +2074,7 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question)}` : 'Use standard 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: GEMINI_MODEL,
+        model: GROQ_MODEL,
         max_tokens: 1500,
         system: systemPrompt,
         messages: chatHistory.slice(-20)
