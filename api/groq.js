@@ -1,5 +1,3 @@
-export const config = { api: { bodyParser: true } };
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -10,20 +8,36 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Groq API key not configured' });
   }
 
-  let body = req.body;
-  if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch(e) {}
+  // Read raw body manually to avoid any parsing issues
+  let rawBody = '';
+  try {
+    rawBody = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => { data += chunk.toString(); });
+      req.on('end', () => resolve(data));
+      req.on('error', reject);
+    });
+  } catch(e) {
+    return res.status(400).json({ error: 'Failed to read request body: ' + e.message });
   }
 
-  const { model, messages, system, max_tokens } = body || {};
+  let body;
+  try {
+    body = JSON.parse(rawBody);
+  } catch(e) {
+    return res.status(400).json({ error: 'Invalid JSON body', raw: rawBody.substring(0, 100) });
+  }
+
+  const { model, messages, system, max_tokens } = body;
 
   if (!messages || !messages.length) {
-    return res.status(400).json({ error: 'No messages provided' });
+    return res.status(400).json({ error: 'No messages in body' });
   }
 
   try {
     const groqMessages = [];
-    if (system) groqMessages.push({ role: 'system', content: system });
+    // Truncate system prompt to avoid hitting limits
+    if (system) groqMessages.push({ role: 'system', content: system.substring(0, 6000) });
     for (const msg of messages) {
       const content = typeof msg.content === 'string'
         ? msg.content
@@ -38,7 +52,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: model || 'llama-3.3-70b-versatile',
+        model: 'llama-3.3-70b-versatile',
         messages: groqMessages,
         max_tokens: max_tokens || 1500,
         temperature: 0.7
