@@ -2067,7 +2067,7 @@ CONVERSATION STYLE:
 ${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
 The most relevant pages from this book for the question are below — answer using these.
 Relevant pages:
-${getRelevantChunks(selectedDoubtBook.text_content, question)}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
+${getRelevantChunks(selectedDoubtBook.text_content, question, 3000)}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
 
   try {
     const res = await fetch(CLAUDE_API, {
@@ -2077,7 +2077,7 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question)}` : 'Use standard 
         model: GROQ_MODEL,
         max_tokens: 1500,
         system: systemPrompt,
-        messages: chatHistory.slice(-20)
+        messages: chatHistory.slice(-10)
       })
     });
     const data = await res.json();
@@ -2087,7 +2087,8 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question)}` : 'Use standard 
     addMessage('ai', reply, false, null);
   } catch(e) {
     typingEl.remove();
-    addMessage('ai', 'Sorry, I couldn\'t connect to AI. Check your internet and try again.', false, null);
+    const errText = await res.text().catch(() => 'unknown');
+    addMessage('ai', `Error ${res.status}: ${errText.substring(0, 200)}`, false, null);
   }
 
   isAILoading = false;
