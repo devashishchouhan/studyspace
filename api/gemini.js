@@ -12,22 +12,19 @@ export default async function handler(req, res) {
   const geminiModel = model || 'gemini-1.5-flash';
 
   try {
-    // Convert Anthropic-style messages to Gemini format
     const contents = [];
 
-    // Add system prompt as first user message if present
     if (system) {
       contents.push({
         role: 'user',
-        parts: [{ text: `[SYSTEM INSTRUCTIONS - Follow these throughout the conversation]\n${system}` }]
+        parts: [{ text: `[SYSTEM INSTRUCTIONS]\n${system}` }]
       });
       contents.push({
         role: 'model',
-        parts: [{ text: 'Understood! I will follow these instructions throughout our conversation.' }]
+        parts: [{ text: 'Understood! I will follow these instructions.' }]
       });
     }
 
-    // Convert messages
     for (const msg of messages) {
       const role = msg.role === 'assistant' ? 'model' : 'user';
       let parts = [];
@@ -35,7 +32,6 @@ export default async function handler(req, res) {
       if (typeof msg.content === 'string') {
         parts = [{ text: msg.content }];
       } else if (Array.isArray(msg.content)) {
-        // Handle multimodal (text + image)
         for (const block of msg.content) {
           if (block.type === 'text') {
             parts.push({ text: block.text });
@@ -50,37 +46,44 @@ export default async function handler(req, res) {
         }
       }
 
-      contents.push({ role, parts });
+      if (parts.length > 0) contents.push({ role, parts });
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            maxOutputTokens: max_tokens || 1500,
-            temperature: 0.7
-          }
-        })
-      }
-    );
+    // Try both auth methods — query param and header
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
+    
+    const response = await fetch(`${url}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        contents,
+        generationConfig: {
+          maxOutputTokens: max_tokens || 1500,
+          temperature: 0.7
+        }
+      })
+    });
 
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || 'Gemini API error' });
+      console.error('Gemini error:', JSON.stringify(data));
+      return res.status(response.status).json({ 
+        error: data.error?.message || 'Gemini API error',
+        details: data 
+      });
     }
 
-    // Convert Gemini response to Anthropic-style format so frontend code works unchanged
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     return res.status(200).json({
       content: [{ type: 'text', text }]
     });
 
   } catch (error) {
+    console.error('Handler error:', error);
     return res.status(500).json({ error: 'Failed to reach Gemini API: ' + error.message });
   }
 }
