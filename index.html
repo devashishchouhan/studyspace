@@ -1122,6 +1122,15 @@
     <div class="doubt-layout">
       <div class="doubt-sidebar">
         <h3>Books</h3>
+        <select id="doubtSubjectFilter" onchange="renderDoubtBooks()" style="width:100%;background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text);font-size:12px;padding:7px 10px;margin-bottom:10px;font-family:inherit;outline:none;cursor:pointer">
+          <option value="">All Subjects</option>
+          <option value="Mathematics">📐 Mathematics</option>
+          <option value="Science">🔬 Science</option>
+          <option value="Social Studies">🌍 Social Studies</option>
+          <option value="English">📖 English</option>
+          <option value="Hindi">🇮🇳 Hindi</option>
+          <option value="Sanskrit">🕉️ Sanskrit</option>
+        </select>
         <div class="book-select-list" id="doubtBookList">
           <div style="font-size:13px;color:var(--text-muted);padding:8px">No books uploaded yet</div>
         </div>
@@ -1921,12 +1930,14 @@ function renderDoubtBooks() {
     list.innerHTML = `<div style="font-size:13px;color:var(--text-muted);padding:8px">No books uploaded yet</div>`;
     return;
   }
+  const filter = document.getElementById('doubtSubjectFilter')?.value || '';
+  const filtered = filter ? books.filter(b => b.subject === filter) : books;
   list.innerHTML = `
     <div class="book-select-item ${!selectedDoubtBook ? 'selected' : ''}" onclick="selectDoubtBook(null)">
       <div class="book-select-name">🌐 General (Any topic)</div>
       <div class="book-select-sub">Ask anything</div>
     </div>
-    ${books.map(b => `
+    ${filtered.map(b => `
     <div class="book-select-item ${selectedDoubtBook?.id === b.id ? 'selected' : ''}" onclick="selectDoubtBook('${b.id}')">
       <div class="book-select-name">${getSubjectEmoji(b.subject)} ${b.name}</div>
       <div class="book-select-sub">${b.subject}</div>
