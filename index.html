@@ -2087,8 +2087,7 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question, 3000)}` : 'Use sta
     addMessage('ai', reply, false, null);
   } catch(e) {
     typingEl.remove();
-    const errText = await res.text().catch(() => 'unknown');
-    addMessage('ai', `Error ${res.status}: ${errText.substring(0, 200)}`, false, null);
+    addMessage('ai', 'Connection error: ' + e.message, false, null);
   }
 
   isAILoading = false;
