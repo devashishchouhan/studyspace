@@ -6,6 +6,9 @@
 <title>StudySpace — Class 9 CBSE</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <style>
   :root {
     --bg: #0B0F14;
@@ -1214,8 +1217,8 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://vbqjtpfqrktwgfefzmbf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicWp0cGZxcmt0d2dmZWZ6bWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDU5MjAsImV4cCI6MjEwNTEyMTkyMH0._Obsduv7-cHn52jg6-Lsg1DVfdn6_khaYHHjBfT1NBE';
-const CLAUDE_API = '/api/claude';
-const CLAUDE_MODEL = 'claude-sonnet-4-6';
+const CLAUDE_API = '/api/gemini';
+const GEMINI_MODEL = 'gemini-1.5-flash';
 
 const SUBJECTS = [
   { name: 'Mathematics', emoji: '📐', color: '#6366f1', tag: 'tag-math' },
@@ -1689,7 +1692,7 @@ Make questions clear, concise, and exam-relevant. Include definitions, formulas,
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: GEMINI_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = data.content[0].text;
@@ -1758,7 +1761,7 @@ Respond ONLY with valid JSON, no markdown:
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: GEMINI_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = data.content[0].text;
@@ -2126,6 +2129,8 @@ CONVERSATION STYLE:
 - Keep responses conversational, not essay-like
 - Use short paragraphs, never walls of text
 - Bold key terms using **term**
+- For math: use $ for inline equations like $x^2 + 2x + 1$ and $$ for block equations. Always explain what each symbol means in plain English alongside the formula
+- NEVER show raw LaTeX without explanation. Always say "this means..." after any formula
 - After every explanation, end with ONE follow-up question or prompt to keep the conversation going
 - If asked a vague question, ask a clarifying question before answering
 
@@ -2139,7 +2144,7 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question)}` : 'Use standard 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: CLAUDE_MODEL,
+        model: GEMINI_MODEL,
         max_tokens: 1500,
         system: systemPrompt,
         messages: chatHistory.slice(-20)
@@ -2174,9 +2179,38 @@ function addMessage(role, text, typing = false, imageSrc = null) {
 }
 
 function formatMessage(text) {
-  return escapeHtml(text)
+  // Convert markdown-style formatting
+  let html = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^### (.+)$/gm, '<strong style="font-size:15px">$1</strong>')
+    .replace(/^## (.+)$/gm, '<strong style="font-size:15px">$1</strong>')
+    .replace(/^# (.+)$/gm, '<strong style="font-size:16px">$1</strong>')
+    .replace(/^- (.+)$/gm, '&bull; $1')
+    .replace(/^\d+\. (.+)$/gm, (m, p1, offset, str) => {
+      const num = m.match(/^(\d+)\./) [1];
+      return `<span style="color:var(--accent);font-weight:600">${num}.</span> ${p1}`;
+    })
+    .replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">')
     .replace(/\n/g, '<br>');
+
+  // Render LaTeX — replace $$ $$ block and $ $ inline
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  try {
+    renderMathInElement(div, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true }
+      ],
+      throwOnError: false
+    });
+    return div.innerHTML;
+  } catch(e) {
+    return html;
+  }
 }
 
 function escapeHtml(str) {
