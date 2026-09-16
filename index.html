@@ -1152,9 +1152,17 @@
           </div>
         </div>
 
-        <div class="chat-input-area">
-          <textarea class="chat-input" id="chatInput" placeholder="Ask a doubt..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDoubt()}" oninput="autoResize(this)"></textarea>
-          <button class="chat-send" id="chatSendBtn" onclick="sendDoubt()">↑</button>
+        <div class="chat-input-area" style="flex-direction:column;gap:8px">
+          <div id="imagePreviewArea" style="display:none;position:relative;width:fit-content">
+            <img id="imagePreview" style="max-height:80px;max-width:200px;border-radius:8px;border:1px solid var(--border-light)" />
+            <button onclick="removeImage()" style="position:absolute;top:-6px;right:-6px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:white;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-end;width:100%">
+            <button onclick="document.getElementById('imageInput').click()" style="background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:all 0.15s" title="Upload image" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border-light)';this.style.color='var(--text-muted)'">📷</button>
+            <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+            <textarea class="chat-input" id="chatInput" placeholder="Ask a doubt or paste a screenshot..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDoubt()}" oninput="autoResize(this)"></textarea>
+            <button class="chat-send" id="chatSendBtn" onclick="sendDoubt()">↑</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1953,15 +1961,55 @@ function selectDoubtBook(id) {
   document.getElementById('chatBookSub').textContent = sub;
 }
 
+let pendingImage = null; // { base64, mediaType }
+
+function handleImageUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const base64 = e.target.result.split(',')[1];
+    const mediaType = file.type;
+    pendingImage = { base64, mediaType };
+    document.getElementById('imagePreview').src = e.target.result;
+    document.getElementById('imagePreviewArea').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function removeImage() {
+  pendingImage = null;
+  document.getElementById('imagePreviewArea').style.display = 'none';
+  document.getElementById('imagePreview').src = '';
+}
+
 async function sendDoubt() {
   const input = document.getElementById('chatInput');
   const question = input.value.trim();
-  if (!question || isAILoading) return;
+  if ((!question && !pendingImage) || isAILoading) return;
+
+  const hasImage = !!pendingImage;
+  const imageData = pendingImage;
+  const displayText = question || '📷 Image sent';
 
   input.value = '';
   input.style.height = 'auto';
-  addMessage('user', question);
-  chatHistory.push({ role: 'user', content: question });
+  addMessage('user', displayText, false, hasImage ? document.getElementById('imagePreview').src : null);
+
+  // Build message content for API
+  let userContent;
+  if (hasImage) {
+    userContent = [
+      { type: 'image', source: { type: 'base64', media_type: imageData.mediaType, data: imageData.base64 } },
+      { type: 'text', text: question || 'Please explain what is in this image and help me understand it.' }
+    ];
+  } else {
+    userContent = question;
+  }
+
+  chatHistory.push({ role: 'user', content: userContent });
+  removeImage();
 
   isAILoading = true;
   document.getElementById('chatSendBtn').disabled = true;
@@ -2015,26 +2063,34 @@ Relevant book content: ${selectedDoubtBook.text_content?.substring(0, 3000) || '
     const reply = data.content[0].text;
     chatHistory.push({ role: 'assistant', content: reply });
     typingEl.remove();
-    addMessage('ai', reply);
+    addMessage('ai', reply, false, null);
   } catch(e) {
     typingEl.remove();
-    addMessage('ai', 'Sorry, I couldn\'t connect to AI. Check your internet and try again.');
+    addMessage('ai', 'Sorry, I couldn\'t connect to AI. Check your internet and try again.', false, null);
   }
 
   isAILoading = false;
   document.getElementById('chatSendBtn').disabled = false;
 }
 
-function addMessage(role, text, typing = false) {
+function addMessage(role, text, typing = false, imageSrc = null) {
   const container = document.getElementById('chatMessages');
   const el = document.createElement('div');
   el.className = `msg ${role} ${typing ? 'msg-typing' : ''}`;
+  const imgHtml = imageSrc ? `<img src="${imageSrc}" style="max-width:200px;max-height:160px;border-radius:8px;margin-bottom:6px;display:block" />` : '';
+  const formattedText = typing ? '' : formatMessage(text);
   el.innerHTML = `
     <div class="msg-avatar">${role === 'ai' ? '🤖' : '👤'}</div>
-    <div class="msg-bubble">${typing ? '' : escapeHtml(text).replace(/\n/g, '<br>')}</div>`;
+    <div class="msg-bubble">${imgHtml}${formattedText}</div>`;
   container.appendChild(el);
   container.scrollTop = container.scrollHeight;
   return el;
+}
+
+function formatMessage(text) {
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
 }
 
 function escapeHtml(str) {
