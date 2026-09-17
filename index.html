@@ -2315,29 +2315,6 @@ function renderDoubtBooks() {
     </div>`).join('')}`;
 }
 
-const cleanedBookCache = {};
-
-async function cleanPageWithGroq(rawText) {
-  const res = await fetch(CLAUDE_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      max_tokens: 1000,
-      system: `You are a text cleaner for CBSE textbook PDFs. The input is raw extracted text from a PDF page that may contain garbled characters (□, replacement chars), isolated numbers from broken fractions, and formatting noise. 
-Your job:
-1. Remove all garbage characters (□, ▯, replacement chars, lone unicode symbols)
-2. Reconstruct broken fractions: isolated numbers on separate lines like "2" then "3" are likely "2/3"
-3. Preserve all real textual content exactly — definitions, theorems, examples, exercise questions
-4. If the page is mostly images/diagrams with very little real text, respond with exactly: [IMAGE_PAGE]
-5. Return only the cleaned text, no explanation`,
-      messages: [{ role: 'user', content: rawText.substring(0, 2000) }]
-    })
-  });
-  const data = await res.json();
-  return data?.content?.[0]?.text || rawText;
-}
-
 function selectDoubtBook(id) {
   selectedDoubtBook = id ? books.find(b => b.id === id) : null;
   renderDoubtBooks();
@@ -2345,56 +2322,10 @@ function selectDoubtBook(id) {
   const sub = selectedDoubtBook ? `Answering from this book · Class 9 ${selectedDoubtBook.subject}` : 'Select a book or ask anything';
   document.getElementById('chatBookTitle').textContent = title;
   document.getElementById('chatBookSub').textContent = sub;
-
-  if (!selectedDoubtBook || !selectedDoubtBook.text_content) {
-    renderChapterPreview(null);
-    return;
-  }
-
-  // Already cleaned
-  if (cleanedBookCache[selectedDoubtBook.id]) {
-    renderChapterPreview(cleanedBookCache[selectedDoubtBook.id]);
-    return;
-  }
-
-  // Show loading state while cleaning
-  renderChapterPreview(null, true);
-
-  // Parse pages first
-  const rawText = selectedDoubtBook.text_content;
-  const pageNums = [];
-  let m;
-  const pp = /\[PAGE (\d+)\]/g;
-  while ((m = pp.exec(rawText)) !== null) pageNums.push(parseInt(m[1]));
-  const pageParts = rawText.split(/\[PAGE \d+\]/);
-  const pageBlocks = rawText.includes('[PAGE') ?
-    pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
-    [{ num: null, text: rawText }];
-
-  // Clean pages sequentially via Groq, update cache progressively
-  const bookId = selectedDoubtBook.id;
-  cleanedBookCache[bookId] = pageBlocks.map(p => ({ num: p.num, text: p.text, cleaned: false }));
-
-  (async () => {
-    for (let i = 0; i < pageBlocks.length; i++) {
-      try {
-        const result = await cleanPageWithGroq(pageBlocks[i].text);
-        cleanedBookCache[bookId][i] = { num: pageBlocks[i].num, text: result, cleaned: true };
-      } catch(e) {
-        cleanedBookCache[bookId][i] = { num: pageBlocks[i].num, text: pageBlocks[i].text, cleaned: true };
-      }
-      // Re-render progressively every 3 pages
-      if (i % 3 === 0 && selectedDoubtBook?.id === bookId) {
-        renderChapterPreview(cleanedBookCache[bookId]);
-      }
-    }
-    if (selectedDoubtBook?.id === bookId) {
-      renderChapterPreview(cleanedBookCache[bookId]);
-    }
-  })();
+  renderChapterPreview();
 }
 
-function renderChapterPreview(cleanedPages, isLoading) {
+function renderChapterPreview() {
   const body = document.getElementById('previewBody');
   const titleEl = document.getElementById('previewTitle');
   const hintEl = document.getElementById('readerHint');
@@ -2416,36 +2347,45 @@ function renderChapterPreview(cleanedPages, isLoading) {
   if (hintEl) hintEl.style.display = 'block';
   if (searchBar) searchBar.style.display = 'flex';
 
-  if (isLoading || !cleanedPages) {
-    body.innerHTML = `<div class="chapter-empty">
-      <div class="reader-cleaning-banner" style="border-radius:8px;margin:auto">
-        <div class="reader-cleaning-dot"></div>
-        Cleaning text with AI — this only happens once per book…
-      </div>
-    </div>`;
-    return;
-  }
-
-  const pageBlocks = cleanedPages;
-
-  // Build TOC labels from raw text (more reliable than cleaned)
   const rawText = selectedDoubtBook.text_content;
+
   const pageNums = [];
   let m; const pp = /\[PAGE (\d+)\]/g;
   while ((m = pp.exec(rawText)) !== null) pageNums.push(parseInt(m[1]));
-  const rawParts = rawText.split(/\[PAGE \d+\]/);
-  const rawPageBlocks = rawText.includes('[PAGE') ?
-    rawParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
+  const pageParts = rawText.split(/\[PAGE \d+\]/);
+  const pageBlocks = rawText.includes('[PAGE') ?
+    pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
     [{ num: null, text: rawText }];
 
-  const tocItems = rawPageBlocks.map(p => {
-    const firstMeaningfulLine = p.text.split('\n').find(l => l.trim().length > 4) || '';
-    const label = firstMeaningfulLine.trim().replace(/[□▯\uFFFD]/g, '').substring(0, 16).trim() || ('Page ' + p.num);
-    return { num: p.num, label };
-  });
+  function isGarbagePage(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (!lines.length) return true;
+    const garbageLines = lines.filter(l =>
+      /^[\uFFFD\u25A1\u25A0\s]+$/.test(l) ||
+      /^\d{1,2}$/.test(l) ||
+      l.length === 1
+    );
+    return garbageLines.length / lines.length > 0.55;
+  }
+
+  function stripGarbage(text) {
+    return text
+      .replace(/[\uFFFD\u25A1\u25A0\u{1F4F7}]/gu, '')
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+      .split('\n')
+      .filter(l => {
+        const t = l.trim();
+        if (!t) return false;
+        if (/^\d{1,2}$/.test(t)) return false;
+        if (t.length === 1) return false;
+        if (/^[\W_]+$/.test(t)) return false;
+        return true;
+      })
+      .join('\n');
+  }
 
   function formatPageText(text) {
-    const lines = text.split('\n');
+    const lines = stripGarbage(text).split('\n');
     let html = '';
     let numberedGroup = [];
 
@@ -2460,21 +2400,21 @@ function renderChapterPreview(cleanedPages, isLoading) {
     lines.forEach(line => {
       const trimmed = line.trim();
       if (!trimmed) { flushNumbered(); return; }
-      const numberedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
-      if (numberedMatch) { numberedGroup.push({ n: numberedMatch[1], text: numberedMatch[2] }); return; }
+      const nm = trimmed.match(/^(\d+)[.)]\s+(.+)/);
+      if (nm) { numberedGroup.push({ n: nm[1], text: nm[2] }); return; }
       flushNumbered();
       if (/^(note|remember|tip|important|caution|example)[:\s]/i.test(trimmed)) {
         html += `<div class="reader-tip">💡 ${escapeHtml(trimmed)}</div>`; return;
       }
-      if (/[=²³±×÷√∫∑]/.test(trimmed) && trimmed.length < 120 && !/[a-z]{6,}/i.test(trimmed.replace(/[^a-z]/gi,''))) {
+      if (/[=²³±×÷√∫∑]/.test(trimmed) && trimmed.length < 120) {
         html += `<div class="reader-math">${escapeHtml(trimmed)}</div>`; return;
       }
       if (trimmed === trimmed.toUpperCase() && trimmed.length > 2 && trimmed.length < 80 && /[A-Z]/.test(trimmed)) {
         html += `<div class="reader-h1">${escapeHtml(trimmed)}</div>`; return;
       }
       if (trimmed.length < 60 && !/[.!?,;]$/.test(trimmed) && trimmed.length > 4) {
-        const uppercaseRatio = (trimmed.match(/[A-Z]/g) || []).length / trimmed.length;
-        if (uppercaseRatio > 0.3) { html += `<div class="reader-h2">${escapeHtml(trimmed)}</div>`; return; }
+        const ucRatio = (trimmed.match(/[A-Z]/g) || []).length / trimmed.length;
+        if (ucRatio > 0.3) { html += `<div class="reader-h2">${escapeHtml(trimmed)}</div>`; return; }
       }
       html += `<div class="reader-para">${escapeHtml(trimmed)}</div>`;
     });
@@ -2482,15 +2422,12 @@ function renderChapterPreview(cleanedPages, isLoading) {
     return html;
   }
 
-  // Cleaning progress banner
-  const totalCleaned = pageBlocks.filter(p => p.cleaned).length;
-  const allDone = totalCleaned === pageBlocks.length;
-  const cleaningBanner = allDone ? '' : `<div class="reader-cleaning-banner">
-    <div class="reader-cleaning-dot"></div>
-    Cleaning ${totalCleaned}/${pageBlocks.length} pages…
-  </div>`;
+  const tocItems = pageBlocks.map(p => {
+    const clean = stripGarbage(p.text);
+    const label = clean.split('\n').find(l => l.trim().length > 3)?.trim().substring(0, 16) || ('Page ' + p.num);
+    return { num: p.num, label };
+  });
 
-  // Build TOC
   let tocHtml = `<div class="reader-toc" id="readerToc"><div class="reader-toc-label">Pages</div>`;
   tocItems.forEach((item, idx) => {
     tocHtml += `<div class="reader-toc-item${idx === 0 ? ' active' : ''}" onclick="scrollToPage(${item.num}, this)">
@@ -2500,31 +2437,30 @@ function renderChapterPreview(cleanedPages, isLoading) {
   });
   tocHtml += `</div>`;
 
-  // Build content
-  let contentHtml = `<div class="reader-content" id="readerContent">${cleaningBanner}`;
+  let contentHtml = `<div class="reader-content" id="readerContent">`;
   pageBlocks.forEach(page => {
-    const isImagePage = page.text.trim() === '[IMAGE_PAGE]';
-    const isUncleaned = !page.cleaned;
-
+    const garbage = isGarbagePage(page.text);
+    const cleanText = stripGarbage(page.text);
+    const hasReadable = cleanText.trim().length > 30;
     let pageContent = '';
-    if (isImagePage) {
+    if (garbage) {
       pageContent = `<div class="reader-image-notice">
         <div class="reader-image-notice-icon">🖼️</div>
         <div class="reader-image-notice-text">
           <strong>This page contains diagrams or equations</strong>
-          <span>Open the PDF in another tab to view this page visually.</span>
+          <span>Refer to the original PDF to view this page visually.</span>
         </div>
       </div>`;
-    } else if (isUncleaned) {
-      pageContent = `<div class="reader-image-notice" style="border-color:rgba(99,102,241,0.3);background:rgba(99,102,241,0.05)">
-        <div class="reader-cleaning-dot" style="margin-top:3px"></div>
-        <div class="reader-image-notice-text"><span style="color:var(--accent)">Cleaning this page…</span></div>
-      </div>`;
+      if (hasReadable) {
+        pageContent += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Readable text on this page</div>
+          ${formatPageText(cleanText)}
+        </div>`;
+      }
     } else {
       pageContent = formatPageText(page.text);
     }
-
-    contentHtml += `<div class="reader-page-block" id="rpage-${page.num}" data-page="${page.num}">
+    contentHtml += `<div class="reader-page-block" id="rpage-${page.num}" data-page="${page.num || ''}">
       <div class="reader-page-divider">
         ${page.num ? `<span class="reader-page-label">Page ${page.num}</span>` : ''}
         <div class="reader-page-line"></div>
@@ -2552,7 +2488,6 @@ function readerSearch() {
   const query = document.getElementById('readerSearchInput').value.trim().toLowerCase();
   const resultEl = document.getElementById('readerSearchResult');
   if (!query || !selectedDoubtBook?.text_content) { resultEl.textContent = ''; return; }
-
   const rawText = selectedDoubtBook.text_content;
   const pageNums = [];
   let m; const pp = /\[PAGE (\d+)\]/g;
@@ -2561,19 +2496,18 @@ function readerSearch() {
   const pageBlocks = rawText.includes('[PAGE') ?
     parts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
     [{ num: null, text: rawText }];
-
   const hit = pageBlocks.find(p => p.text.toLowerCase().includes(query));
   if (hit) {
     scrollToPage(hit.num, null);
     resultEl.textContent = `Found on page ${hit.num}`;
-    // Also highlight TOC item
     document.querySelectorAll('.reader-toc-item').forEach(t => {
-      t.classList.toggle('active', t.textContent.includes(String(hit.num)));
+      t.classList.toggle('active', t.querySelector('.reader-toc-pg')?.textContent === String(hit.num));
     });
   } else {
     resultEl.textContent = 'Not found';
   }
 }
+
 
 function getRelevantChunks(text, query, maxChars) {
   maxChars = maxChars || 15000;
