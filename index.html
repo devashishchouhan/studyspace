@@ -2734,33 +2734,46 @@ function readerSearch() {
 
 
 function getRelevantChunks(text, query, maxChars) {
-  maxChars = maxChars || 15000;
+  maxChars = maxChars || 6000;
   if (!text) return 'Not available';
-  var pagePattern = /\[PAGE \d+\]/g;
-  var pageLabels = text.match(pagePattern) || [];
-  var pages = text.split(pagePattern);
+  const pagePattern = /\[PAGE \d+\]/g;
+  const pageLabels = text.match(pagePattern) || [];
+  const pages = text.split(pagePattern);
   if (pages.length <= 1) return text.substring(0, maxChars);
-  var keywords = query.toLowerCase().split(/\s+/).filter(function(w){ return w.length > 2; });
-  var scored = pages.map(function(pageText, i) {
-    var lower = pageText.toLowerCase();
-    var score = keywords.reduce(function(s, kw) {
-      var escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      var matches = (lower.match(new RegExp(escaped, 'g')) || []).length;
-      return s + matches;
+
+  const keywords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const scored = pages.map((pageText, i) => {
+    const lower = pageText.toLowerCase();
+    const score = keywords.reduce((s, kw) => {
+      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return s + (lower.match(new RegExp(escaped, 'g')) || []).length;
     }, 0);
-    return { pageText: pageText, label: pageLabels[i-1] || '', score: score, index: i };
+    return { pageText, label: pageLabels[i-1] || '', score, index: i };
   });
-  var topPages = scored
-    .filter(function(p){ return p.score > 0; })
-    .sort(function(a,b){ return b.score - a.score; })
-    .slice(0, 8)
-    .sort(function(a,b){ return a.index - b.index; });
-  if (!topPages.length) return text.substring(0, maxChars);
-  var result = '';
-  for (var j = 0; j < topPages.length; j++) {
-    result += topPages[j].label + '\n' + topPages[j].pageText + '\n';
-    if (result.length >= maxChars) break;
+
+  // Get top scoring pages
+  const topPages = scored
+    .filter(p => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+
+  // Add neighbouring pages for context
+  const indices = new Set(topPages.map(p => p.index));
+  topPages.forEach(p => {
+    if (p.index > 1) indices.add(p.index - 1);
+    if (p.index < pages.length - 1) indices.add(p.index + 1);
+  });
+
+  // If no matches found, return first 6 pages
+  if (!topPages.length) {
+    return pages.slice(1, 7).map((p, i) => (pageLabels[i] || '') + '\n' + p).join('\n').substring(0, maxChars);
   }
+
+  const result = Array.from(indices)
+    .sort((a, b) => a - b)
+    .map(i => (scored[i].label || '') + '\n' + scored[i].pageText)
+    .join('\n');
+
   return result.substring(0, maxChars);
 }
 
@@ -2811,8 +2824,8 @@ CONVERSATION STYLE:
 
 ${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
 Answer ONLY from the book content below. Do not add information not present in these pages.
-Full chapter text:
-${selectedDoubtBook.text_content.substring(0, 40000)}` : 'Use standard CBSE Class 9 curriculum.'}`;
+Relevant content:
+${getRelevantChunks(selectedDoubtBook.text_content, question, 6000)}` : 'Use standard CBSE Class 9 curriculum.'}`;
 
   try {
     const res = await fetch(CLAUDE_API, {
