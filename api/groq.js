@@ -1,6 +1,8 @@
 export const config = {
   api: {
-    bodyParser: false
+    bodyParser: {
+      sizeLimit: '10mb'
+    }
   }
 };
 
@@ -14,30 +16,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Groq API key not configured' });
   }
 
-  // Read raw body
-  const rawBody = await new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk.toString(); });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
-  });
-
-  let body;
-  try {
-    body = JSON.parse(rawBody);
-  } catch(e) {
-    return res.status(400).json({ error: 'Invalid JSON', raw: rawBody.substring(0, 200) });
-  }
-
-  const { messages, system, max_tokens } = body || {};
+  const body = req.body;
+  const { messages, model, max_tokens } = body || {};
 
   if (!messages || !messages.length) {
-    return res.status(400).json({ error: 'No messages', bodyKeys: Object.keys(body || {}) });
+    return res.status(400).json({ error: 'No messages' });
   }
 
   try {
     const groqMessages = [];
-    if (system) groqMessages.push({ role: 'system', content: system.substring(0, 4000) });
     for (const msg of messages) {
       const content = typeof msg.content === 'string'
         ? msg.content
@@ -52,7 +39,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-120b',
+        model: model || 'openai/gpt-oss-120b',
         messages: groqMessages,
         max_tokens: max_tokens || 1500,
         temperature: 0.7
