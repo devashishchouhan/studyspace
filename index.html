@@ -122,11 +122,17 @@
     padding-right: 16px;
     padding-top: 60px;
     padding-bottom: 0;
+    overflow: hidden;
+    height: 100vh;
   }
 
+  body:has(#page-doubt.active) {
+    overflow: hidden;
+  }
+
+  .doubt-sidebar.collapsed { padding: 8px 4px; align-items: center; overflow: hidden; }
   .doubt-sidebar.collapsed #sidebarContent { display: none; }
   .doubt-sidebar.collapsed #sidebarLabel { display: none; }
-  .doubt-sidebar.collapsed { padding: 8px 4px; align-items: center; }
   #sidebarToggle.expanded { transform: rotate(180deg); }
 
   .page { display: none; }
@@ -742,11 +748,12 @@
   /* DOUBT SOLVER */
   .doubt-layout {
     display: grid;
-    grid-template-columns: 160px 1fr 1fr;
+    grid-template-columns: 200px 1fr 1fr;
     gap: 12px;
     margin-top: 12px;
-    height: calc(100vh - 120px);
-    transition: grid-template-columns 0.2s ease;
+    height: calc(100vh - 90px);
+    transition: grid-template-columns 0.25s ease;
+    overflow: hidden;
   }
 
   .doubt-layout.books-collapsed {
@@ -1067,9 +1074,10 @@
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px;
+    padding: 12px;
     display: flex; flex-direction: column;
     overflow: hidden;
+    min-width: 0;
   }
 
   .doubt-sidebar h3 {
@@ -1080,7 +1088,9 @@
 
   .book-select-list {
     flex: 1; overflow-y: auto;
-    display: flex; flex-direction: column; gap: 6px;
+    display: flex; flex-direction: column; gap: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
   }
 
   .book-select-item {
