@@ -2711,22 +2711,53 @@ function addMessage(role, text, typing = false, imageSrc = null) {
 }
 
 function formatMessage(text) {
-  // Convert markdown-style formatting
-  let html = text
+  // Step 1: Extract and protect LaTeX blocks before any escaping
+  const latexBlocks = [];
+  let protected_text = text;
+
+  // Protect \[...\] display blocks
+  protected_text = protected_text.replace(/\\\[([\s\S]*?)\\\]/g, (match) => {
+    latexBlocks.push(match);
+    return `%%LATEX${latexBlocks.length - 1}%%`;
+  });
+
+  // Protect \(...\) inline blocks
+  protected_text = protected_text.replace(/\\\(([\s\S]*?)\\\)/g, (match) => {
+    latexBlocks.push(match);
+    return `%%LATEX${latexBlocks.length - 1}%%`;
+  });
+
+  // Protect $$...$$ display blocks
+  protected_text = protected_text.replace(/\$\$([\s\S]*?)\$\$/g, (match) => {
+    latexBlocks.push(match);
+    return `%%LATEX${latexBlocks.length - 1}%%`;
+  });
+
+  // Protect $...$ inline (not lone $)
+  protected_text = protected_text.replace(/\$([^$\n]+?)\$/g, (match) => {
+    latexBlocks.push(match);
+    return `%%LATEX${latexBlocks.length - 1}%%`;
+  });
+
+  // Step 2: Now safely escape HTML and apply markdown formatting
+  let html = protected_text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/^### (.+)$/gm, '<strong style="font-size:15px">$1</strong>')
     .replace(/^## (.+)$/gm, '<strong style="font-size:15px">$1</strong>')
     .replace(/^# (.+)$/gm, '<strong style="font-size:16px">$1</strong>')
     .replace(/^- (.+)$/gm, '&bull; $1')
-    .replace(/^\d+\. (.+)$/gm, (m, p1, offset, str) => {
-      const num = m.match(/^(\d+)\./) [1];
+    .replace(/^\d+\. (.+)$/gm, (m, p1) => {
+      const num = m.match(/^(\d+)\./)[1];
       return `<span style="color:var(--accent);font-weight:600">${num}.</span> ${p1}`;
     })
     .replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">')
     .replace(/\n/g, '<br>');
 
-  // Render LaTeX — replace $$ $$ block and $ $ inline
+  // Step 3: Restore LaTeX blocks (unescaped)
+  html = html.replace(/%%LATEX(\d+)%%/g, (_, i) => latexBlocks[parseInt(i)]);
+
+  // Step 4: Render KaTeX
   const div = document.createElement('div');
   div.innerHTML = html;
   try {
