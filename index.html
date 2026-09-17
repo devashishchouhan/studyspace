@@ -1078,6 +1078,7 @@
     display: flex; flex-direction: column;
     overflow: hidden;
     min-width: 0;
+    height: 100%;
   }
 
   .doubt-sidebar h3 {
@@ -1086,11 +1087,21 @@
     letter-spacing: 0.06em; margin-bottom: 12px;
   }
 
+  #sidebarContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
   .book-select-list {
-    flex: 1; overflow-y: auto;
+    flex: 1;
+    overflow-y: auto;
     display: flex; flex-direction: column; gap: 4px;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+    min-height: 0;
   }
 
   .book-select-item {
