@@ -1458,10 +1458,16 @@
       <div class="chapter-preview" id="chapterPreview">
         <div class="chapter-preview-header">
           <span id="previewTitle">Chapter Text</span>
-          <div id="pdfControls" style="display:none;display:flex;align-items:center;gap:8px">
-            <button onclick="pdfPrevPage()" style="background:var(--surface);border:1px solid var(--border-light);color:var(--text-dim);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px;font-family:inherit">‹</button>
-            <span id="pdfPageInfo" style="font-size:12px;color:var(--text-muted);min-width:70px;text-align:center">Page 1</span>
-            <button onclick="pdfNextPage()" style="background:var(--surface);border:1px solid var(--border-light);color:var(--text-dim);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px;font-family:inherit">›</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="viewToggle" style="display:none;background:var(--surface);border:1px solid var(--border-light);border-radius:6px;overflow:hidden;display:flex">
+              <button id="btnPdfView" onclick="switchView('pdf')" style="padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:inherit;background:var(--accent);color:white;transition:all 0.15s">PDF</button>
+              <button id="btnTextView" onclick="switchView('text')" style="padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:inherit;background:transparent;color:var(--text-muted);transition:all 0.15s">Text</button>
+            </div>
+            <div id="pdfControls" style="display:none;align-items:center;gap:8px">
+              <button onclick="pdfPrevPage()" style="background:var(--surface);border:1px solid var(--border-light);color:var(--text-dim);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px;font-family:inherit">‹</button>
+              <span id="pdfPageInfo" style="font-size:12px;color:var(--text-muted);min-width:70px;text-align:center">Page 1</span>
+              <button onclick="pdfNextPage()" style="background:var(--surface);border:1px solid var(--border-light);color:var(--text-dim);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px;font-family:inherit">›</button>
+            </div>
           </div>
         </div>
         <div class="reader-search-bar" id="readerSearchBar" style="display:none">
@@ -2359,20 +2365,24 @@ let pdfViewerDoc = null;
 let pdfCurrentPage = 1;
 let pdfTotalPages = 0;
 let pdfRendering = false;
+let currentView = 'pdf'; // 'pdf' or 'text'
 
 function renderChapterPreview() {
   const body = document.getElementById('previewBody');
   const titleEl = document.getElementById('previewTitle');
   const searchBar = document.getElementById('readerSearchBar');
   const pdfControls = document.getElementById('pdfControls');
+  const viewToggle = document.getElementById('viewToggle');
 
   pdfViewerDoc = null;
   pdfCurrentPage = 1;
+  currentView = 'pdf';
 
   if (!selectedDoubtBook) {
     titleEl.textContent = 'Chapter Text';
     if (searchBar) searchBar.style.display = 'none';
     if (pdfControls) pdfControls.style.display = 'none';
+    if (viewToggle) viewToggle.style.display = 'none';
     body.innerHTML = `<div class="chapter-empty">
       <div style="font-size:28px;margin-bottom:12px">📖</div>
       <p>Select a book from the left to preview its content here.</p>
@@ -2382,30 +2392,88 @@ function renderChapterPreview() {
 
   titleEl.textContent = selectedDoubtBook.name.replace(/_/g, ' ');
 
-  // If PDF URL exists, render with PDF.js
   if (selectedDoubtBook.pdf_url) {
     if (searchBar) searchBar.style.display = 'flex';
     if (pdfControls) pdfControls.style.display = 'flex';
+    if (viewToggle) viewToggle.style.display = 'flex';
     body.innerHTML = `<div class="chapter-empty"><div class="progress-ring" style="width:32px;height:32px;margin-bottom:12px"></div><p style="color:var(--text-muted);font-size:13px">Loading PDF…</p></div>`;
     pdfjsLib.getDocument(selectedDoubtBook.pdf_url).promise.then(pdf => {
       pdfViewerDoc = pdf;
       pdfTotalPages = pdf.numPages;
       pdfCurrentPage = 1;
       renderPdfPage(1);
-    }).catch(e => {
+    }).catch(() => {
       body.innerHTML = `<div class="chapter-empty"><p style="color:var(--red)">Failed to load PDF. Try re-uploading.</p></div>`;
     });
     return;
   }
 
-  // Fallback: no PDF URL (old book) — show re-upload prompt
+  // No PDF URL — show text only
   if (pdfControls) pdfControls.style.display = 'none';
-  if (searchBar) searchBar.style.display = 'none';
-  body.innerHTML = `<div class="chapter-empty">
-    <div style="font-size:28px;margin-bottom:12px">📄</div>
-    <p style="margin-bottom:12px">This book was uploaded before PDF storage was enabled.</p>
-    <p style="color:var(--text-muted);font-size:12px">Re-upload the PDF on the Books page to view it here.</p>
-  </div>`;
+  if (viewToggle) viewToggle.style.display = 'none';
+  if (searchBar) searchBar.style.display = selectedDoubtBook.text_content ? 'flex' : 'none';
+  renderTextView();
+}
+
+function switchView(view) {
+  currentView = view;
+  const pdfControls = document.getElementById('pdfControls');
+  const btnPdf = document.getElementById('btnPdfView');
+  const btnText = document.getElementById('btnTextView');
+
+  btnPdf.style.background = view === 'pdf' ? 'var(--accent)' : 'transparent';
+  btnPdf.style.color = view === 'pdf' ? 'white' : 'var(--text-muted)';
+  btnText.style.background = view === 'text' ? 'var(--accent)' : 'transparent';
+  btnText.style.color = view === 'text' ? 'white' : 'var(--text-muted)';
+
+  if (view === 'pdf') {
+    if (pdfControls) pdfControls.style.display = 'flex';
+    if (pdfViewerDoc) renderPdfPage(pdfCurrentPage);
+  } else {
+    if (pdfControls) pdfControls.style.display = 'none';
+    renderTextView();
+  }
+}
+
+function renderTextView() {
+  const body = document.getElementById('previewBody');
+  if (!selectedDoubtBook?.text_content) {
+    body.innerHTML = `<div class="chapter-empty"><p>No text available for this book.</p></div>`;
+    return;
+  }
+
+  body.style.background = '';
+  body.style.padding = '12px 16px';
+  body.style.overflowY = 'auto';
+
+  const rawText = selectedDoubtBook.text_content;
+  const pageNums = [];
+  let m; const pp = /\[PAGE (\d+)\]/g;
+  while ((m = pp.exec(rawText)) !== null) pageNums.push(parseInt(m[1]));
+  const pageParts = rawText.split(/\[PAGE \d+\]/);
+  const pageBlocks = rawText.includes('[PAGE') ?
+    pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
+    [{ num: null, text: rawText }];
+
+  function cleanLine(l) {
+    return l.replace(/[\uFFFD\u25A1\u25A0□▯]/g, '').trim();
+  }
+
+  let html = '';
+  pageBlocks.forEach(page => {
+    const lines = page.text.split('\n')
+      .map(cleanLine)
+      .filter(l => l.length > 2 && !/^\d{1,2}$/.test(l));
+
+    if (!lines.length) return;
+
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:8px">Page ${page.num || ''}</div>
+      <div style="font-size:13px;line-height:1.9;color:var(--text-dim);white-space:pre-wrap;user-select:text;cursor:text">${escapeHtml(lines.join('\n'))}</div>
+    </div>`;
+  });
+
+  body.innerHTML = `<div style="padding:4px 0">${html}</div>`;
 }
 
 async function renderPdfPage(pageNum) {
