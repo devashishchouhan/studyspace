@@ -1458,6 +1458,11 @@
       <div class="chapter-preview" id="chapterPreview">
         <div class="chapter-preview-header">
           <span id="previewTitle">Chapter Text</span>
+          <div id="pdfControls" style="display:none;display:flex;align-items:center;gap:8px">
+            <button onclick="pdfPrevPage()" style="background:var(--surface);border:1px solid var(--border-light);color:var(--text-dim);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px;font-family:inherit">‹</button>
+            <span id="pdfPageInfo" style="font-size:12px;color:var(--text-muted);min-width:70px;text-align:center">Page 1</span>
+            <button onclick="pdfNextPage()" style="background:var(--surface);border:1px solid var(--border-light);color:var(--text-dim);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px;font-family:inherit">›</button>
+          </div>
         </div>
         <div class="reader-search-bar" id="readerSearchBar" style="display:none">
           <input class="reader-search-input" id="readerSearchInput" type="text" placeholder="Search e.g. Exercise 4.2, theorem, identity…" onkeydown="if(event.key==='Enter')readerSearch()">
@@ -1470,11 +1475,9 @@
               <div class="chapter-empty">
                 <div style="font-size:28px;margin-bottom:12px">📖</div>
                 <p>Select a book from the left to preview its content here.</p>
-                <p style="margin-top:8px;color:var(--text-muted);font-size:12px">You can select and copy text to paste in the chat.</p>
               </div>
             </div>
           </div>
-          <div class="reader-select-hint" id="readerHint" style="display:none">✦ Select any text → copy → paste in chat to ask Buddy about it</div>
         </div>
       </div>
 
@@ -1610,6 +1613,7 @@ async function createTables() {
       subject text,
       pages integer default 0,
       text_content text default '',
+      pdf_url text default '',
       created_at timestamptz default now()
     );
     create table if not exists sessions (
@@ -1912,7 +1916,6 @@ async function processPDF(file) {
     for (let i = 1; i <= Math.min(pages, 200); i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      // Group text items by line using transform y-position
       const items = content.items;
       let pageText = '';
       let lastY = null;
@@ -1924,8 +1927,28 @@ async function processPDF(file) {
       }
       fullText += `\n[PAGE ${i}]\n${pageText.trim()}\n`;
       const pct = Math.round((i / Math.min(pages, 200)) * 100);
-      tempCard.querySelector('div').textContent = `${pct}% extracted...`;
+      tempCard.querySelector('.progress-overlay div').textContent = `${pct}% extracted...`;
     }
+
+    // Upload PDF file to Supabase Storage
+    tempCard.querySelector('.progress-overlay div').textContent = 'Uploading PDF...';
+    const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    let pdf_url = null;
+    try {
+      const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/books/${fileName}`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/pdf',
+          'x-upsert': 'true'
+        },
+        body: file
+      });
+      if (uploadRes.ok) {
+        pdf_url = `${SUPABASE_URL}/storage/v1/object/public/books/${fileName}`;
+      }
+    } catch(e) { console.warn('PDF upload failed:', e); }
 
     // Detect subject
     const subject = detectSubject(file.name, fullText);
@@ -1935,7 +1958,8 @@ async function processPDF(file) {
       name: file.name.replace('.pdf', ''),
       subject,
       pages,
-      text_content: fullText.substring(0, 200000)
+      text_content: fullText.substring(0, 200000),
+      pdf_url
     };
 
     let saved;
@@ -2325,169 +2349,111 @@ function selectDoubtBook(id) {
   renderChapterPreview();
 }
 
+
+// ==================== PDF VIEWER ====================
+let pdfViewerDoc = null;
+let pdfCurrentPage = 1;
+let pdfTotalPages = 0;
+let pdfRendering = false;
+
 function renderChapterPreview() {
   const body = document.getElementById('previewBody');
   const titleEl = document.getElementById('previewTitle');
-  const hintEl = document.getElementById('readerHint');
   const searchBar = document.getElementById('readerSearchBar');
+  const pdfControls = document.getElementById('pdfControls');
 
-  if (!selectedDoubtBook || !selectedDoubtBook.text_content) {
+  pdfViewerDoc = null;
+  pdfCurrentPage = 1;
+
+  if (!selectedDoubtBook) {
     titleEl.textContent = 'Chapter Text';
-    if (hintEl) hintEl.style.display = 'none';
     if (searchBar) searchBar.style.display = 'none';
+    if (pdfControls) pdfControls.style.display = 'none';
     body.innerHTML = `<div class="chapter-empty">
       <div style="font-size:28px;margin-bottom:12px">📖</div>
       <p>Select a book from the left to preview its content here.</p>
-      <p style="margin-top:8px;color:var(--text-muted);font-size:12px">You can select and copy text to paste in the chat.</p>
     </div>`;
     return;
   }
 
   titleEl.textContent = selectedDoubtBook.name.replace(/_/g, ' ');
-  if (hintEl) hintEl.style.display = 'block';
-  if (searchBar) searchBar.style.display = 'flex';
 
-  const rawText = selectedDoubtBook.text_content;
-
-  const pageNums = [];
-  let m; const pp = /\[PAGE (\d+)\]/g;
-  while ((m = pp.exec(rawText)) !== null) pageNums.push(parseInt(m[1]));
-  const pageParts = rawText.split(/\[PAGE \d+\]/);
-  const pageBlocks = rawText.includes('[PAGE') ?
-    pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
-    [{ num: null, text: rawText }];
-
-  function isGarbagePage(text) {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    if (!lines.length) return true;
-    const garbageLines = lines.filter(l =>
-      /^[\uFFFD\u25A1\u25A0\s]+$/.test(l) ||
-      /^\d{1,2}$/.test(l) ||
-      l.length === 1
-    );
-    return garbageLines.length / lines.length > 0.55;
-  }
-
-  function stripGarbage(text) {
-    return text
-      .replace(/[\uFFFD\u25A1\u25A0\u{1F4F7}]/gu, '')
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-      .split('\n')
-      .filter(l => {
-        const t = l.trim();
-        if (!t) return false;
-        if (/^\d{1,2}$/.test(t)) return false;
-        if (t.length === 1) return false;
-        if (/^[\W_]+$/.test(t)) return false;
-        return true;
-      })
-      .join('\n');
-  }
-
-  function formatPageText(text) {
-    const lines = stripGarbage(text).split('\n');
-    let html = '';
-    let numberedGroup = [];
-
-    function flushNumbered() {
-      if (!numberedGroup.length) return;
-      numberedGroup.forEach(item => {
-        html += `<div class="reader-numbered"><span class="rn">${item.n}.</span><span>${escapeHtml(item.text)}</span></div>`;
-      });
-      numberedGroup = [];
-    }
-
-    lines.forEach(line => {
-      const trimmed = line.trim();
-      if (!trimmed) { flushNumbered(); return; }
-      const nm = trimmed.match(/^(\d+)[.)]\s+(.+)/);
-      if (nm) { numberedGroup.push({ n: nm[1], text: nm[2] }); return; }
-      flushNumbered();
-      if (/^(note|remember|tip|important|caution|example)[:\s]/i.test(trimmed)) {
-        html += `<div class="reader-tip">💡 ${escapeHtml(trimmed)}</div>`; return;
-      }
-      if (/[=²³±×÷√∫∑]/.test(trimmed) && trimmed.length < 120) {
-        html += `<div class="reader-math">${escapeHtml(trimmed)}</div>`; return;
-      }
-      if (trimmed === trimmed.toUpperCase() && trimmed.length > 2 && trimmed.length < 80 && /[A-Z]/.test(trimmed)) {
-        html += `<div class="reader-h1">${escapeHtml(trimmed)}</div>`; return;
-      }
-      if (trimmed.length < 60 && !/[.!?,;]$/.test(trimmed) && trimmed.length > 4) {
-        const ucRatio = (trimmed.match(/[A-Z]/g) || []).length / trimmed.length;
-        if (ucRatio > 0.3) { html += `<div class="reader-h2">${escapeHtml(trimmed)}</div>`; return; }
-      }
-      html += `<div class="reader-para">${escapeHtml(trimmed)}</div>`;
+  // If PDF URL exists, render with PDF.js
+  if (selectedDoubtBook.pdf_url) {
+    if (searchBar) searchBar.style.display = 'flex';
+    if (pdfControls) pdfControls.style.display = 'flex';
+    body.innerHTML = `<div class="chapter-empty"><div class="progress-ring" style="width:32px;height:32px;margin-bottom:12px"></div><p style="color:var(--text-muted);font-size:13px">Loading PDF…</p></div>`;
+    pdfjsLib.getDocument(selectedDoubtBook.pdf_url).promise.then(pdf => {
+      pdfViewerDoc = pdf;
+      pdfTotalPages = pdf.numPages;
+      pdfCurrentPage = 1;
+      renderPdfPage(1);
+    }).catch(e => {
+      body.innerHTML = `<div class="chapter-empty"><p style="color:var(--red)">Failed to load PDF. Try re-uploading.</p></div>`;
     });
-    flushNumbered();
-    return html;
+    return;
   }
 
-  const tocItems = pageBlocks.map(p => {
-    const clean = stripGarbage(p.text);
-    const label = clean.split('\n').find(l => l.trim().length > 3)?.trim().substring(0, 16) || ('Page ' + p.num);
-    return { num: p.num, label };
-  });
+  // Fallback: no PDF URL (old book) — show re-upload prompt
+  if (pdfControls) pdfControls.style.display = 'none';
+  if (searchBar) searchBar.style.display = 'none';
+  body.innerHTML = `<div class="chapter-empty">
+    <div style="font-size:28px;margin-bottom:12px">📄</div>
+    <p style="margin-bottom:12px">This book was uploaded before PDF storage was enabled.</p>
+    <p style="color:var(--text-muted);font-size:12px">Re-upload the PDF on the Books page to view it here.</p>
+  </div>`;
+}
 
-  let tocHtml = `<div class="reader-toc" id="readerToc"><div class="reader-toc-label">Pages</div>`;
-  tocItems.forEach((item, idx) => {
-    tocHtml += `<div class="reader-toc-item${idx === 0 ? ' active' : ''}" onclick="scrollToPage(${item.num}, this)">
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${escapeHtml(item.label)}</span>
-      <span class="reader-toc-pg">${item.num || ''}</span>
-    </div>`;
-  });
-  tocHtml += `</div>`;
+async function renderPdfPage(pageNum) {
+  if (!pdfViewerDoc || pdfRendering) return;
+  pdfRendering = true;
 
-  let contentHtml = `<div class="reader-content" id="readerContent">`;
-  pageBlocks.forEach(page => {
-    const garbage = isGarbagePage(page.text);
-    const cleanText = stripGarbage(page.text);
-    const hasReadable = cleanText.trim().length > 30;
-    let pageContent = '';
-    if (garbage) {
-      pageContent = `<div class="reader-image-notice">
-        <div class="reader-image-notice-icon">🖼️</div>
-        <div class="reader-image-notice-text">
-          <strong>This page contains diagrams or equations</strong>
-          <span>Refer to the original PDF to view this page visually.</span>
-        </div>
-      </div>`;
-      if (hasReadable) {
-        pageContent += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-          <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Readable text on this page</div>
-          ${formatPageText(cleanText)}
-        </div>`;
-      }
-    } else {
-      pageContent = formatPageText(page.text);
-    }
-    contentHtml += `<div class="reader-page-block" id="rpage-${page.num}" data-page="${page.num || ''}">
-      <div class="reader-page-divider">
-        ${page.num ? `<span class="reader-page-label">Page ${page.num}</span>` : ''}
-        <div class="reader-page-line"></div>
-      </div>
-      ${pageContent}
-    </div>`;
-  });
-  contentHtml += `</div>`;
+  const body = document.getElementById('previewBody');
+  const pageInfo = document.getElementById('pdfPageInfo');
+  if (pageInfo) pageInfo.textContent = `Page ${pageNum} / ${pdfTotalPages}`;
 
-  body.innerHTML = tocHtml + contentHtml;
+  try {
+    const page = await pdfViewerDoc.getPage(pageNum);
+    const containerWidth = body.clientWidth - 16 || 400;
+    const viewport = page.getViewport({ scale: 1 });
+    const scale = containerWidth / viewport.width;
+    const scaledViewport = page.getViewport({ scale });
 
-  const content = document.getElementById('readerContent');
-  if (content) {
-    content.addEventListener('scroll', function() {
-      const blocks = content.querySelectorAll('.reader-page-block');
-      const tItems = document.querySelectorAll('.reader-toc-item');
-      let activeIdx = 0;
-      blocks.forEach((block, i) => { if (block.offsetTop - content.scrollTop <= 40) activeIdx = i; });
-      tItems.forEach((t, i) => t.classList.toggle('active', i === activeIdx));
-    });
+    const canvas = document.createElement('canvas');
+    canvas.width = scaledViewport.width;
+    canvas.height = scaledViewport.height;
+    canvas.style.cssText = 'width:100%;display:block;border-radius:4px;';
+
+    body.innerHTML = '';
+    body.style.overflowY = 'auto';
+    body.style.padding = '8px';
+    body.appendChild(canvas);
+
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
+  } catch(e) {
+    body.innerHTML = `<div class="chapter-empty"><p style="color:var(--red)">Error rendering page.</p></div>`;
   }
+
+  pdfRendering = false;
+}
+
+function pdfNextPage() {
+  if (!pdfViewerDoc || pdfCurrentPage >= pdfTotalPages) return;
+  pdfCurrentPage++;
+  renderPdfPage(pdfCurrentPage);
+}
+
+function pdfPrevPage() {
+  if (!pdfViewerDoc || pdfCurrentPage <= 1) return;
+  pdfCurrentPage--;
+  renderPdfPage(pdfCurrentPage);
 }
 
 function readerSearch() {
   const query = document.getElementById('readerSearchInput').value.trim().toLowerCase();
   const resultEl = document.getElementById('readerSearchResult');
   if (!query || !selectedDoubtBook?.text_content) { resultEl.textContent = ''; return; }
+
   const rawText = selectedDoubtBook.text_content;
   const pageNums = [];
   let m; const pp = /\[PAGE (\d+)\]/g;
@@ -2496,13 +2462,14 @@ function readerSearch() {
   const pageBlocks = rawText.includes('[PAGE') ?
     parts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
     [{ num: null, text: rawText }];
+
   const hit = pageBlocks.find(p => p.text.toLowerCase().includes(query));
-  if (hit) {
-    scrollToPage(hit.num, null);
+  if (hit && pdfViewerDoc) {
+    pdfCurrentPage = hit.num || 1;
+    renderPdfPage(pdfCurrentPage);
+    resultEl.textContent = `Jumped to page ${pdfCurrentPage}`;
+  } else if (hit) {
     resultEl.textContent = `Found on page ${hit.num}`;
-    document.querySelectorAll('.reader-toc-item').forEach(t => {
-      t.classList.toggle('active', t.querySelector('.reader-toc-pg')?.textContent === String(hit.num));
-    });
   } else {
     resultEl.textContent = 'Not found';
   }
