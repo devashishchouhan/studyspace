@@ -1,31 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
+  "functions": {
+    "api/groq.js": {
+      "memory": 256,
+      "maxDuration": 30
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/groq",
-      "dest": "/api/groq.js"
-    },
-    {
-      "src": "/api/claude",
-      "dest": "/api/claude.js"
-    },
-    {
-      "src": "/api/gemini",
-      "dest": "/api/gemini.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  }
 }
