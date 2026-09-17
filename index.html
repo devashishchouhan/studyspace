@@ -2812,7 +2812,7 @@ CONVERSATION STYLE:
 ${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
 Answer ONLY from the book content below. Do not add information not present in these pages.
 Full chapter text:
-${selectedDoubtBook.text_content.substring(0, 80000)}` : 'Use standard CBSE Class 9 curriculum.'}`;
+${selectedDoubtBook.text_content.substring(0, 40000)}` : 'Use standard CBSE Class 9 curriculum.'}`;
 
   try {
     const res = await fetch(CLAUDE_API, {
