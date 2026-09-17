@@ -1935,20 +1935,24 @@ async function processPDF(file) {
     const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     let pdf_url = null;
     try {
+      const formData = new FormData();
+      formData.append('', file, fileName);
       const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/books/${fileName}`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/pdf',
-          'x-upsert': 'true'
         },
         body: file
       });
-      if (uploadRes.ok) {
+      const uploadData = await uploadRes.json();
+      console.log('Storage upload response:', uploadRes.status, uploadData);
+      if (uploadRes.ok || uploadRes.status === 200) {
         pdf_url = `${SUPABASE_URL}/storage/v1/object/public/books/${fileName}`;
+      } else {
+        console.warn('Storage upload failed:', uploadData);
       }
-    } catch(e) { console.warn('PDF upload failed:', e); }
+    } catch(e) { console.warn('PDF upload error:', e); }
 
     // Detect subject
     const subject = detectSubject(file.name, fullText);
