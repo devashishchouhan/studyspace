@@ -2418,22 +2418,28 @@ async function renderPdfPage(pageNum) {
 
   try {
     const page = await pdfViewerDoc.getPage(pageNum);
-    const containerWidth = body.clientWidth - 16 || 400;
+    const containerWidth = body.clientWidth - 32 || 400;
     const viewport = page.getViewport({ scale: 1 });
     const scale = containerWidth / viewport.width;
     const scaledViewport = page.getViewport({ scale });
 
     const canvas = document.createElement('canvas');
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-    canvas.style.cssText = 'width:100%;display:block;border-radius:4px;';
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = scaledViewport.width * dpr;
+    canvas.height = scaledViewport.height * dpr;
+    canvas.style.cssText = `width:${scaledViewport.width}px;height:${scaledViewport.height}px;display:block;border-radius:6px;`;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
 
     body.innerHTML = '';
     body.style.overflowY = 'auto';
-    body.style.padding = '8px';
+    body.style.overflowX = 'hidden';
+    body.style.padding = '12px';
+    body.style.background = '#525659';
     body.appendChild(canvas);
 
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
+    await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
   } catch(e) {
     body.innerHTML = `<div class="chapter-empty"><p style="color:var(--red)">Error rendering page.</p></div>`;
   }
