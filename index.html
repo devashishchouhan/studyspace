@@ -116,6 +116,12 @@
     padding-right: 24px;
   }
 
+  body:has(#page-doubt.active) main {
+    max-width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
   .page { display: none; }
   .page.active { display: block; }
 
@@ -722,7 +728,7 @@
   /* DOUBT SOLVER */
   .doubt-layout {
     display: grid;
-    grid-template-columns: 240px 1fr 1fr;
+    grid-template-columns: 160px 1fr 1fr;
     gap: 12px;
     margin-top: 32px;
     height: calc(100vh - 140px);
