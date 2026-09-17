@@ -914,6 +914,41 @@
     margin: 10px 0;
   }
 
+  .reader-image-notice {
+    background: rgba(245,158,11,0.07);
+    border: 1px dashed rgba(245,158,11,0.3);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 8px 0 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .reader-image-notice-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .reader-image-notice-text {
+    font-size: 12px;
+    color: var(--yellow);
+    line-height: 1.6;
+  }
+
+  .reader-image-notice-text strong {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 2px;
+    font-size: 12px;
+  }
+
+  .reader-image-notice-text span {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
   .reader-select-hint {
     font-size: 11px;
     color: var(--text-muted);
@@ -2331,16 +2366,60 @@ function renderChapterPreview() {
   });
   tocHtml += `</div>`;
 
+  function getGarbageDensity(text) {
+    const total = text.replace(/\s/g, '').length;
+    if (total === 0) return 1;
+    // Count unicode replacement chars, private-use area chars, and lone single-char lines
+    const garbageChars = (text.match(/[\uFFFD\u25A1\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g) || []).length;
+    const loneNumbers = (text.match(/^\s*\d\s*$/gm) || []).length;
+    return (garbageChars + loneNumbers * 2) / total;
+  }
+
+  function getCleanText(text) {
+    return text
+      .replace(/[\uFFFD\u25A1\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
+      .split('\n')
+      .filter(l => {
+        const t = l.trim();
+        return t.length > 3 && !/^\d{1,2}$/.test(t);
+      })
+      .join('\n');
+  }
+
   // Build pages HTML
   let contentHtml = `<div class="reader-content" id="readerContent">`;
   pageBlocks.forEach(page => {
     const pid = page.num ? `data-page="${page.num}"` : '';
+    const density = getGarbageDensity(page.text);
+    const isGarbage = density > 0.28;
+    const cleanText = getCleanText(page.text);
+    const hasCleanText = cleanText.trim().length > 20;
+
+    let pageContent = '';
+    if (isGarbage) {
+      pageContent += `<div class="reader-image-notice">
+        <div class="reader-image-notice-icon">🖼️</div>
+        <div class="reader-image-notice-text">
+          <strong>This page contains diagrams or equations</strong>
+          <span>The content couldn't be extracted as text. Open the PDF in another tab to view this page visually.</span>
+        </div>
+      </div>`;
+      if (hasCleanText) {
+        pageContent += `<div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Readable text on this page</div>
+          ${formatPageText(cleanText)}
+        </div>`;
+      }
+    } else {
+      pageContent = formatPageText(page.text);
+    }
+
     contentHtml += `<div class="reader-page-block" id="rpage-${page.num}" ${pid}>
       <div class="reader-page-divider">
         ${page.num ? `<span class="reader-page-label">Page ${page.num}</span>` : ''}
         <div class="reader-page-line"></div>
       </div>
-      ${formatPageText(page.text)}
+      ${pageContent}
     </div>`;
   });
   contentHtml += `</div>`;
