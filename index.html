@@ -1714,7 +1714,7 @@
 const SUPABASE_URL = 'https://vbqjtpfqrktwgfefzmbf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicWp0cGZxcmt0d2dmZWZ6bWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDU5MjAsImV4cCI6MjEwNTEyMTkyMH0._Obsduv7-cHn52jg6-Lsg1DVfdn6_khaYHHjBfT1NBE';
 const CLAUDE_API = '/api/groq';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODEL = 'qwen/qwen3.6-27b';
 
 const SUBJECTS = [
   { name: 'Mathematics', emoji: '📐', color: '#6366f1', tag: 'tag-math' },
@@ -2764,21 +2764,26 @@ function getRelevantChunks(text, query, maxChars) {
   return result.substring(0, maxChars);
 }
 
+async function getCurrentPageBase64() {
+  const canvas = document.querySelector('#previewBody canvas');
+  if (!canvas) return null;
+  try {
+    return canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+  } catch(e) { return null; }
+}
+
 async function sendDoubt() {
   const input = document.getElementById('chatInput');
   const question = input.value.trim();
   if (!question || isAILoading) return;
 
-
   input.value = '';
   input.style.height = 'auto';
   addMessage('user', question, false, null);
-
   chatHistory.push({ role: 'user', content: question });
 
   isAILoading = true;
   document.getElementById('chatSendBtn').disabled = true;
-
   const typingEl = addMessage('ai', '', true);
 
   const systemPrompt = `You are Buddy — a warm, witty, and deeply knowledgeable CBSE Class 9 tutor for a 14-year-old student in India.
@@ -2812,12 +2817,33 @@ CONVERSATION STYLE:
 - After every explanation, end with ONE follow-up question or prompt to keep the conversation going
 - If asked a vague question, ask a clarifying question before answering
 
-${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
-The most relevant pages from this book for the question are below — answer using these.
-Relevant pages:
-${getRelevantChunks(selectedDoubtBook.text_content, question, 3000)}` : 'Use standard CBSE Class 9 curriculum. Cover all boards and common question patterns.'}`;
+${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}). Page ${pdfCurrentPage} of the book is shown as an image — read it and answer the student's question based on what you see.` : 'Use standard CBSE Class 9 curriculum.'}`;
 
   try {
+    // Get current PDF page as image if available
+    const pageImage = pdfViewerDoc ? await getCurrentPageBase64() : null;
+
+    // Build message content — image + question for vision model
+    let userContent;
+    if (pageImage) {
+      userContent = [
+        {
+          type: 'image_url',
+          image_url: { url: `data:image/jpeg;base64,${pageImage}` }
+        },
+        { type: 'text', text: question }
+      ];
+    } else {
+      userContent = question;
+    }
+
+    // Build messages — use vision content for latest message only
+    const historyMessages = chatHistory.slice(-10, -1); // all except last user msg
+    const messages = [
+      ...historyMessages,
+      { role: 'user', content: userContent }
+    ];
+
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2825,11 +2851,11 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question, 3000)}` : 'Use sta
         model: GROQ_MODEL,
         max_tokens: 1500,
         system: systemPrompt,
-        messages: chatHistory.slice(-10)
+        messages
       })
     });
     const data = await res.json();
-    const reply = data?.content?.[0]?.text || 'Sorry, I could not generate a response. Please try again.';
+    const reply = data?.content?.[0]?.text || data?.choices?.[0]?.message?.content || 'Sorry, I could not generate a response. Please try again.';
     chatHistory.push({ role: 'assistant', content: reply });
     typingEl.remove();
     addMessage('ai', reply, false, null);
