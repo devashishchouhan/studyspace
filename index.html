@@ -914,6 +914,79 @@
     margin: 10px 0;
   }
 
+  .reader-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    flex-shrink: 0;
+  }
+
+  .reader-search-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    padding: 5px 10px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .reader-search-input:focus { border-color: var(--accent); }
+  .reader-search-input::placeholder { color: var(--text-muted); }
+
+  .reader-search-btn {
+    background: var(--accent-soft);
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+
+  .reader-search-btn:hover { background: rgba(99,102,241,0.2); }
+
+  .reader-search-result {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .reader-cleaning-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    background: rgba(99,102,241,0.07);
+    border-bottom: 1px solid rgba(99,102,241,0.15);
+    font-size: 11px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .reader-cleaning-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse-dot 1s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
   .reader-image-notice {
     background: rgba(245,158,11,0.07);
     border: 1px dashed rgba(245,158,11,0.3);
@@ -1385,6 +1458,11 @@
       <div class="chapter-preview" id="chapterPreview">
         <div class="chapter-preview-header">
           <span id="previewTitle">Chapter Text</span>
+        </div>
+        <div class="reader-search-bar" id="readerSearchBar" style="display:none">
+          <input class="reader-search-input" id="readerSearchInput" type="text" placeholder="Search e.g. Exercise 4.2, theorem, identity…" onkeydown="if(event.key==='Enter')readerSearch()">
+          <button class="reader-search-btn" onclick="readerSearch()">Find</button>
+          <span class="reader-search-result" id="readerSearchResult"></span>
         </div>
         <div class="chapter-preview-inner">
           <div class="chapter-preview-reader">
@@ -2237,6 +2315,29 @@ function renderDoubtBooks() {
     </div>`).join('')}`;
 }
 
+const cleanedBookCache = {};
+
+async function cleanPageWithGroq(rawText) {
+  const res = await fetch(CLAUDE_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      max_tokens: 1000,
+      system: `You are a text cleaner for CBSE textbook PDFs. The input is raw extracted text from a PDF page that may contain garbled characters (□, replacement chars), isolated numbers from broken fractions, and formatting noise. 
+Your job:
+1. Remove all garbage characters (□, ▯, replacement chars, lone unicode symbols)
+2. Reconstruct broken fractions: isolated numbers on separate lines like "2" then "3" are likely "2/3"
+3. Preserve all real textual content exactly — definitions, theorems, examples, exercise questions
+4. If the page is mostly images/diagrams with very little real text, respond with exactly: [IMAGE_PAGE]
+5. Return only the cleaned text, no explanation`,
+      messages: [{ role: 'user', content: rawText.substring(0, 2000) }]
+    })
+  });
+  const data = await res.json();
+  return data?.content?.[0]?.text || rawText;
+}
+
 function selectDoubtBook(id) {
   selectedDoubtBook = id ? books.find(b => b.id === id) : null;
   renderDoubtBooks();
@@ -2244,17 +2345,65 @@ function selectDoubtBook(id) {
   const sub = selectedDoubtBook ? `Answering from this book · Class 9 ${selectedDoubtBook.subject}` : 'Select a book or ask anything';
   document.getElementById('chatBookTitle').textContent = title;
   document.getElementById('chatBookSub').textContent = sub;
-  renderChapterPreview();
+
+  if (!selectedDoubtBook || !selectedDoubtBook.text_content) {
+    renderChapterPreview(null);
+    return;
+  }
+
+  // Already cleaned
+  if (cleanedBookCache[selectedDoubtBook.id]) {
+    renderChapterPreview(cleanedBookCache[selectedDoubtBook.id]);
+    return;
+  }
+
+  // Show loading state while cleaning
+  renderChapterPreview(null, true);
+
+  // Parse pages first
+  const rawText = selectedDoubtBook.text_content;
+  const pageNums = [];
+  let m;
+  const pp = /\[PAGE (\d+)\]/g;
+  while ((m = pp.exec(rawText)) !== null) pageNums.push(parseInt(m[1]));
+  const pageParts = rawText.split(/\[PAGE \d+\]/);
+  const pageBlocks = rawText.includes('[PAGE') ?
+    pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
+    [{ num: null, text: rawText }];
+
+  // Clean pages sequentially via Groq, update cache progressively
+  const bookId = selectedDoubtBook.id;
+  cleanedBookCache[bookId] = pageBlocks.map(p => ({ num: p.num, text: p.text, cleaned: false }));
+
+  (async () => {
+    for (let i = 0; i < pageBlocks.length; i++) {
+      try {
+        const result = await cleanPageWithGroq(pageBlocks[i].text);
+        cleanedBookCache[bookId][i] = { num: pageBlocks[i].num, text: result, cleaned: true };
+      } catch(e) {
+        cleanedBookCache[bookId][i] = { num: pageBlocks[i].num, text: pageBlocks[i].text, cleaned: true };
+      }
+      // Re-render progressively every 3 pages
+      if (i % 3 === 0 && selectedDoubtBook?.id === bookId) {
+        renderChapterPreview(cleanedBookCache[bookId]);
+      }
+    }
+    if (selectedDoubtBook?.id === bookId) {
+      renderChapterPreview(cleanedBookCache[bookId]);
+    }
+  })();
 }
 
-function renderChapterPreview() {
+function renderChapterPreview(cleanedPages, isLoading) {
   const body = document.getElementById('previewBody');
   const titleEl = document.getElementById('previewTitle');
   const hintEl = document.getElementById('readerHint');
+  const searchBar = document.getElementById('readerSearchBar');
 
   if (!selectedDoubtBook || !selectedDoubtBook.text_content) {
     titleEl.textContent = 'Chapter Text';
     if (hintEl) hintEl.style.display = 'none';
+    if (searchBar) searchBar.style.display = 'none';
     body.innerHTML = `<div class="chapter-empty">
       <div style="font-size:28px;margin-bottom:12px">📖</div>
       <p>Select a book from the left to preview its content here.</p>
@@ -2265,32 +2414,33 @@ function renderChapterPreview() {
 
   titleEl.textContent = selectedDoubtBook.name.replace(/_/g, ' ');
   if (hintEl) hintEl.style.display = 'block';
+  if (searchBar) searchBar.style.display = 'flex';
 
-  const rawText = selectedDoubtBook.text_content;
-
-  // Split into pages by [PAGE X] markers
-  const pagePattern = /\[PAGE (\d+)\]/g;
-  const pageNums = [];
-  let match;
-  while ((match = pagePattern.exec(rawText)) !== null) {
-    pageNums.push(parseInt(match[1]));
+  if (isLoading || !cleanedPages) {
+    body.innerHTML = `<div class="chapter-empty">
+      <div class="reader-cleaning-banner" style="border-radius:8px;margin:auto">
+        <div class="reader-cleaning-dot"></div>
+        Cleaning text with AI — this only happens once per book…
+      </div>
+    </div>`;
+    return;
   }
-  const pageParts = rawText.split(/\[PAGE \d+\]/);
-  // pageParts[0] is content before first PAGE marker (discard if empty)
-  const pages = pageParts.map((part, i) => ({
-    num: pageNums[i - 1] || null,
-    text: part
-  })).filter((p, i) => i === 0 ? p.text.trim().length > 0 && p.num !== null : true);
 
-  // Actual page blocks: skip index 0 if it's the pre-first-page chunk
-  const pageBlocks = rawText.includes('[PAGE') ?
-    pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
+  const pageBlocks = cleanedPages;
+
+  // Build TOC labels from raw text (more reliable than cleaned)
+  const rawText = selectedDoubtBook.text_content;
+  const pageNums = [];
+  let m; const pp = /\[PAGE (\d+)\]/g;
+  while ((m = pp.exec(rawText)) !== null) pageNums.push(parseInt(m[1]));
+  const rawParts = rawText.split(/\[PAGE \d+\]/);
+  const rawPageBlocks = rawText.includes('[PAGE') ?
+    rawParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
     [{ num: null, text: rawText }];
 
-  // Build TOC
-  const tocItems = pageBlocks.map(p => {
+  const tocItems = rawPageBlocks.map(p => {
     const firstMeaningfulLine = p.text.split('\n').find(l => l.trim().length > 4) || '';
-    const label = firstMeaningfulLine.trim().substring(0, 18) || ('Page ' + p.num);
+    const label = firstMeaningfulLine.trim().replace(/[□▯\uFFFD]/g, '').substring(0, 16).trim() || ('Page ' + p.num);
     return { num: p.num, label };
   });
 
@@ -2310,54 +2460,38 @@ function renderChapterPreview() {
     lines.forEach(line => {
       const trimmed = line.trim();
       if (!trimmed) { flushNumbered(); return; }
-
-      // Numbered list: starts with digit(s) followed by . or )
       const numberedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
-      if (numberedMatch) {
-        numberedGroup.push({ n: numberedMatch[1], text: numberedMatch[2] });
-        return;
-      }
+      if (numberedMatch) { numberedGroup.push({ n: numberedMatch[1], text: numberedMatch[2] }); return; }
       flushNumbered();
-
-      // Tip/note lines
       if (/^(note|remember|tip|important|caution|example)[:\s]/i.test(trimmed)) {
-        html += `<div class="reader-tip">💡 ${escapeHtml(trimmed)}</div>`;
-        return;
+        html += `<div class="reader-tip">💡 ${escapeHtml(trimmed)}</div>`; return;
       }
-
-      // Math-like lines: contain =, ², ³, ±, ×, ÷, or pure formula patterns
       if (/[=²³±×÷√∫∑]/.test(trimmed) && trimmed.length < 120 && !/[a-z]{6,}/i.test(trimmed.replace(/[^a-z]/gi,''))) {
-        html += `<div class="reader-math">${escapeHtml(trimmed)}</div>`;
-        return;
+        html += `<div class="reader-math">${escapeHtml(trimmed)}</div>`; return;
       }
-
-      // H1: ALL CAPS, short (likely a chapter/section title)
       if (trimmed === trimmed.toUpperCase() && trimmed.length > 2 && trimmed.length < 80 && /[A-Z]/.test(trimmed)) {
-        html += `<div class="reader-h1">${escapeHtml(trimmed)}</div>`;
-        return;
+        html += `<div class="reader-h1">${escapeHtml(trimmed)}</div>`; return;
       }
-
-      // H2: Short line (< 60 chars) that ends without punctuation — likely a subheading
       if (trimmed.length < 60 && !/[.!?,;]$/.test(trimmed) && trimmed.length > 4) {
-        // Only treat as heading if it looks like a title (no lowercase-heavy sentence)
         const uppercaseRatio = (trimmed.match(/[A-Z]/g) || []).length / trimmed.length;
-        if (uppercaseRatio > 0.3) {
-          html += `<div class="reader-h2">${escapeHtml(trimmed)}</div>`;
-          return;
-        }
+        if (uppercaseRatio > 0.3) { html += `<div class="reader-h2">${escapeHtml(trimmed)}</div>`; return; }
       }
-
-      // Default: paragraph
       html += `<div class="reader-para">${escapeHtml(trimmed)}</div>`;
     });
-
     flushNumbered();
     return html;
   }
 
-  // Build TOC HTML
-  let tocHtml = `<div class="reader-toc" id="readerToc">
-    <div class="reader-toc-label">Pages</div>`;
+  // Cleaning progress banner
+  const totalCleaned = pageBlocks.filter(p => p.cleaned).length;
+  const allDone = totalCleaned === pageBlocks.length;
+  const cleaningBanner = allDone ? '' : `<div class="reader-cleaning-banner">
+    <div class="reader-cleaning-dot"></div>
+    Cleaning ${totalCleaned}/${pageBlocks.length} pages…
+  </div>`;
+
+  // Build TOC
+  let tocHtml = `<div class="reader-toc" id="readerToc"><div class="reader-toc-label">Pages</div>`;
   tocItems.forEach((item, idx) => {
     tocHtml += `<div class="reader-toc-item${idx === 0 ? ' active' : ''}" onclick="scrollToPage(${item.num}, this)">
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${escapeHtml(item.label)}</span>
@@ -2366,55 +2500,31 @@ function renderChapterPreview() {
   });
   tocHtml += `</div>`;
 
-  function getGarbageDensity(text) {
-    const total = text.replace(/\s/g, '').length;
-    if (total === 0) return 1;
-    // Count unicode replacement chars, private-use area chars, and lone single-char lines
-    const garbageChars = (text.match(/[\uFFFD\u25A1\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g) || []).length;
-    const loneNumbers = (text.match(/^\s*\d\s*$/gm) || []).length;
-    return (garbageChars + loneNumbers * 2) / total;
-  }
-
-  function getCleanText(text) {
-    return text
-      .replace(/[\uFFFD\u25A1\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
-      .split('\n')
-      .filter(l => {
-        const t = l.trim();
-        return t.length > 3 && !/^\d{1,2}$/.test(t);
-      })
-      .join('\n');
-  }
-
-  // Build pages HTML
-  let contentHtml = `<div class="reader-content" id="readerContent">`;
+  // Build content
+  let contentHtml = `<div class="reader-content" id="readerContent">${cleaningBanner}`;
   pageBlocks.forEach(page => {
-    const pid = page.num ? `data-page="${page.num}"` : '';
-    const density = getGarbageDensity(page.text);
-    const isGarbage = density > 0.28;
-    const cleanText = getCleanText(page.text);
-    const hasCleanText = cleanText.trim().length > 20;
+    const isImagePage = page.text.trim() === '[IMAGE_PAGE]';
+    const isUncleaned = !page.cleaned;
 
     let pageContent = '';
-    if (isGarbage) {
-      pageContent += `<div class="reader-image-notice">
+    if (isImagePage) {
+      pageContent = `<div class="reader-image-notice">
         <div class="reader-image-notice-icon">🖼️</div>
         <div class="reader-image-notice-text">
           <strong>This page contains diagrams or equations</strong>
-          <span>The content couldn't be extracted as text. Open the PDF in another tab to view this page visually.</span>
+          <span>Open the PDF in another tab to view this page visually.</span>
         </div>
       </div>`;
-      if (hasCleanText) {
-        pageContent += `<div style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">
-          <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Readable text on this page</div>
-          ${formatPageText(cleanText)}
-        </div>`;
-      }
+    } else if (isUncleaned) {
+      pageContent = `<div class="reader-image-notice" style="border-color:rgba(99,102,241,0.3);background:rgba(99,102,241,0.05)">
+        <div class="reader-cleaning-dot" style="margin-top:3px"></div>
+        <div class="reader-image-notice-text"><span style="color:var(--accent)">Cleaning this page…</span></div>
+      </div>`;
     } else {
       pageContent = formatPageText(page.text);
     }
 
-    contentHtml += `<div class="reader-page-block" id="rpage-${page.num}" ${pid}>
+    contentHtml += `<div class="reader-page-block" id="rpage-${page.num}" data-page="${page.num}">
       <div class="reader-page-divider">
         ${page.num ? `<span class="reader-page-label">Page ${page.num}</span>` : ''}
         <div class="reader-page-line"></div>
@@ -2426,29 +2536,43 @@ function renderChapterPreview() {
 
   body.innerHTML = tocHtml + contentHtml;
 
-  // Highlight active TOC item on scroll
   const content = document.getElementById('readerContent');
   if (content) {
     content.addEventListener('scroll', function() {
       const blocks = content.querySelectorAll('.reader-page-block');
-      const tocItems = document.querySelectorAll('.reader-toc-item');
+      const tItems = document.querySelectorAll('.reader-toc-item');
       let activeIdx = 0;
-      blocks.forEach((block, i) => {
-        if (block.offsetTop - content.scrollTop <= 40) activeIdx = i;
-      });
-      tocItems.forEach((t, i) => t.classList.toggle('active', i === activeIdx));
+      blocks.forEach((block, i) => { if (block.offsetTop - content.scrollTop <= 40) activeIdx = i; });
+      tItems.forEach((t, i) => t.classList.toggle('active', i === activeIdx));
     });
   }
 }
 
-function scrollToPage(pageNum, tocEl) {
-  const target = document.getElementById('rpage-' + pageNum);
-  const content = document.getElementById('readerContent');
-  if (target && content) {
-    content.scrollTo({ top: target.offsetTop - 8, behavior: 'smooth' });
+function readerSearch() {
+  const query = document.getElementById('readerSearchInput').value.trim().toLowerCase();
+  const resultEl = document.getElementById('readerSearchResult');
+  if (!query || !selectedDoubtBook?.text_content) { resultEl.textContent = ''; return; }
+
+  const rawText = selectedDoubtBook.text_content;
+  const pageNums = [];
+  let m; const pp = /\[PAGE (\d+)\]/g;
+  while ((m = pp.exec(rawText)) !== null) pageNums.push(parseInt(m[1]));
+  const parts = rawText.split(/\[PAGE \d+\]/);
+  const pageBlocks = rawText.includes('[PAGE') ?
+    parts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
+    [{ num: null, text: rawText }];
+
+  const hit = pageBlocks.find(p => p.text.toLowerCase().includes(query));
+  if (hit) {
+    scrollToPage(hit.num, null);
+    resultEl.textContent = `Found on page ${hit.num}`;
+    // Also highlight TOC item
+    document.querySelectorAll('.reader-toc-item').forEach(t => {
+      t.classList.toggle('active', t.textContent.includes(String(hit.num)));
+    });
+  } else {
+    resultEl.textContent = 'Not found';
   }
-  document.querySelectorAll('.reader-toc-item').forEach(t => t.classList.remove('active'));
-  if (tocEl) tocEl.classList.add('active');
 }
 
 function getRelevantChunks(text, query, maxChars) {
