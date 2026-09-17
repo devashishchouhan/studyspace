@@ -1,3 +1,11 @@
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '4mb'
+    }
+  }
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -8,10 +16,11 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Groq API key not configured' });
   }
 
-  const { model, messages, system, max_tokens } = req.body || {};
+  const body = req.body || {};
+  const { messages, system, max_tokens } = body;
 
   if (!messages || !messages.length) {
-    return res.status(400).json({ error: 'No messages provided' });
+    return res.status(400).json({ error: 'No messages', body: JSON.stringify(body).substring(0, 100) });
   }
 
   try {
