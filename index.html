@@ -670,6 +670,12 @@
 
   .flashcard-area { max-width: 560px; margin: 32px auto; }
 
+  .flashcard-wrapper {
+    perspective: 1000px;
+    margin-bottom: 24px;
+    min-height: 240px;
+  }
+
   .flashcard {
     background: var(--card);
     border: 1px solid var(--border);
@@ -680,10 +686,9 @@
     min-height: 240px;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    transition: transform 0.4s, box-shadow 0.2s;
-    perspective: 1000px;
+    transition: transform 0.5s, box-shadow 0.2s;
+    transform-style: preserve-3d;
     position: relative;
-    margin-bottom: 24px;
   }
 
   .flashcard:hover { box-shadow: 0 4px 24px rgba(99,102,241,0.15); }
@@ -692,10 +697,12 @@
 
   .card-side {
     backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     padding: 32px;
+    border-radius: 20px;
   }
 
   .card-back { transform: rotateY(180deg); }
@@ -1519,15 +1526,17 @@
         <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="endFlashcards()">Done</button>
       </div>
 
-      <div class="flashcard" id="flashcard" onclick="flipCard()">
-        <div class="card-side card-front">
-          <div class="card-tag">Question</div>
-          <div class="card-text" id="fcFront">Loading...</div>
-          <div class="card-hint">Tap to reveal answer</div>
-        </div>
-        <div class="card-side card-back">
-          <div class="card-tag">Answer</div>
-          <div class="card-text" id="fcBack"></div>
+      <div class="flashcard-wrapper">
+        <div class="flashcard" id="flashcard" onclick="flipCard()">
+          <div class="card-side card-front">
+            <div class="card-tag">Question</div>
+            <div class="card-text" id="fcFront">Loading...</div>
+            <div class="card-hint">Tap to reveal answer</div>
+          </div>
+          <div class="card-side card-back">
+            <div class="card-tag">Answer</div>
+            <div class="card-text" id="fcBack"></div>
+          </div>
         </div>
       </div>
 
