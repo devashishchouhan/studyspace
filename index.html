@@ -1714,7 +1714,7 @@
 const SUPABASE_URL = 'https://vbqjtpfqrktwgfefzmbf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicWp0cGZxcmt0d2dmZWZ6bWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDU5MjAsImV4cCI6MjEwNTEyMTkyMH0._Obsduv7-cHn52jg6-Lsg1DVfdn6_khaYHHjBfT1NBE';
 const CLAUDE_API = '/api/groq';
-const GROQ_MODEL = 'qwen/qwen3.6-27b';
+const GROQ_MODEL = 'qwen/qwen3.8-27b';
 
 const SUBJECTS = [
   { name: 'Mathematics', emoji: '📐', color: '#6366f1', tag: 'tag-math' },
@@ -2817,7 +2817,7 @@ CONVERSATION STYLE:
 - After every explanation, end with ONE follow-up question or prompt to keep the conversation going
 - If asked a vague question, ask a clarifying question before answering
 
-${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}). Page ${pdfCurrentPage} of the book is shown as an image — read it and answer the student's question based on what you see.` : 'Use standard CBSE Class 9 curriculum.'}`;
+${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}). Page ${pdfCurrentPage} of the book is shown as an image — read it carefully and answer ONLY from what is explicitly visible on the page. Do not add any information that is not present on the page. If the answer is not on this page, say so clearly.` : 'Use standard CBSE Class 9 curriculum.'}`;
 
   try {
     // Get current PDF page as image if available
