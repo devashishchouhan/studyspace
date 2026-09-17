@@ -1209,8 +1209,8 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://vbqjtpfqrktwgfefzmbf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicWp0cGZxcmt0d2dmZWZ6bWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDU5MjAsImV4cCI6MjEwNTEyMTkyMH0._Obsduv7-cHn52jg6-Lsg1DVfdn6_khaYHHjBfT1NBE';
-const CLAUDE_API = '/api/claude';
-const CLAUDE_MODEL = 'claude-sonnet-4-6';
+const CLAUDE_API = '/api/groq';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 const SUBJECTS = [
   { name: 'Mathematics', emoji: '📐', color: '#6366f1', tag: 'tag-math' },
@@ -1684,7 +1684,7 @@ Make questions clear, concise, and exam-relevant. Include definitions, formulas,
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = data?.content?.[0]?.text || '';
@@ -1753,7 +1753,7 @@ Respond ONLY with valid JSON, no markdown:
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = data?.content?.[0]?.text || '';
@@ -2074,7 +2074,7 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question, 3000)}` : 'Use sta
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: CLAUDE_MODEL,
+        model: GROQ_MODEL,
         max_tokens: 1500,
         system: systemPrompt,
         messages: chatHistory.slice(-10)
