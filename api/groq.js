@@ -1,8 +1,6 @@
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '4mb'
-    }
+    bodyParser: false
   }
 };
 
@@ -16,11 +14,25 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Groq API key not configured' });
   }
 
-  const body = req.body || {};
-  const { messages, system, max_tokens } = body;
+  // Read raw body
+  const rawBody = await new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk.toString(); });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+
+  let body;
+  try {
+    body = JSON.parse(rawBody);
+  } catch(e) {
+    return res.status(400).json({ error: 'Invalid JSON', raw: rawBody.substring(0, 200) });
+  }
+
+  const { messages, system, max_tokens } = body || {};
 
   if (!messages || !messages.length) {
-    return res.status(400).json({ error: 'No messages', body: JSON.stringify(body).substring(0, 100) });
+    return res.status(400).json({ error: 'No messages', bodyKeys: Object.keys(body || {}) });
   }
 
   try {
