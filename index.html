@@ -2430,20 +2430,24 @@ function switchView(view) {
     if (pdfControls) pdfControls.style.display = 'flex';
     if (pdfViewerDoc) renderPdfPage(pdfCurrentPage);
   } else {
-    if (pdfControls) pdfControls.style.display = 'none';
-    renderTextView();
+    if (pdfControls) pdfControls.style.display = 'flex'; // keep page nav visible
+    renderTextView(pdfCurrentPage);
   }
 }
 
-function renderTextView() {
+function renderTextView(pageNum) {
   const body = document.getElementById('previewBody');
+  const pageInfo = document.getElementById('pdfPageInfo');
+
   if (!selectedDoubtBook?.text_content) {
     body.innerHTML = `<div class="chapter-empty"><p>No text available for this book.</p></div>`;
     return;
   }
 
+  if (pageInfo) pageInfo.textContent = `Page ${pageNum} / ${pdfTotalPages || '?'}`;
+
   body.style.background = '';
-  body.style.padding = '12px 16px';
+  body.style.padding = '16px';
   body.style.overflowY = 'auto';
 
   const rawText = selectedDoubtBook.text_content;
@@ -2455,25 +2459,26 @@ function renderTextView() {
     pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
     [{ num: null, text: rawText }];
 
-  function cleanLine(l) {
-    return l.replace(/[\uFFFD\u25A1\u25A0□▯]/g, '').trim();
+  const page = pageBlocks.find(p => p.num === pageNum) || pageBlocks[0];
+  if (!page) { body.innerHTML = `<div class="chapter-empty"><p>No text for this page.</p></div>`; return; }
+
+  const lines = page.text.split('\n')
+    .map(l => l.replace(/[\uFFFD\u25A1\u25A0□▯]/g, '').trim())
+    .filter(l => l.length > 2 && !/^\d{1,2}$/.test(l));
+
+  if (!lines.length) {
+    body.innerHTML = `<div class="chapter-empty">
+      <div style="font-size:24px;margin-bottom:10px">🖼️</div>
+      <p style="font-size:13px;color:var(--text-muted)">This page is mostly diagrams — no readable text to show.</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px">Switch to PDF view to see the visuals.</p>
+    </div>`;
+    return;
   }
 
-  let html = '';
-  pageBlocks.forEach(page => {
-    const lines = page.text.split('\n')
-      .map(cleanLine)
-      .filter(l => l.length > 2 && !/^\d{1,2}$/.test(l));
-
-    if (!lines.length) return;
-
-    html += `<div style="margin-bottom:20px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:8px">Page ${page.num || ''}</div>
-      <div style="font-size:13px;line-height:1.9;color:var(--text-dim);white-space:pre-wrap;user-select:text;cursor:text">${escapeHtml(lines.join('\n'))}</div>
-    </div>`;
-  });
-
-  body.innerHTML = `<div style="padding:4px 0">${html}</div>`;
+  body.innerHTML = `
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:12px">Page ${page.num || ''}</div>
+    <div style="font-size:13px;line-height:1.9;color:var(--text-dim);white-space:pre-wrap;user-select:text;cursor:text">${escapeHtml(lines.join('\n'))}</div>
+  `;
 }
 
 async function renderPdfPage(pageNum) {
@@ -2518,20 +2523,21 @@ async function renderPdfPage(pageNum) {
 function pdfNextPage() {
   if (!pdfViewerDoc || pdfCurrentPage >= pdfTotalPages) return;
   pdfCurrentPage++;
-  renderPdfPage(pdfCurrentPage);
+  if (currentView === 'pdf') renderPdfPage(pdfCurrentPage);
+  else renderTextView(pdfCurrentPage);
 }
 
 function pdfPrevPage() {
   if (!pdfViewerDoc || pdfCurrentPage <= 1) return;
   pdfCurrentPage--;
-  renderPdfPage(pdfCurrentPage);
+  if (currentView === 'pdf') renderPdfPage(pdfCurrentPage);
+  else renderTextView(pdfCurrentPage);
 }
 
 function readerSearch() {
   const query = document.getElementById('readerSearchInput').value.trim().toLowerCase();
   const resultEl = document.getElementById('readerSearchResult');
   if (!query || !selectedDoubtBook?.text_content) { resultEl.textContent = ''; return; }
-
   const rawText = selectedDoubtBook.text_content;
   const pageNums = [];
   let m; const pp = /\[PAGE (\d+)\]/g;
@@ -2540,18 +2546,17 @@ function readerSearch() {
   const pageBlocks = rawText.includes('[PAGE') ?
     parts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
     [{ num: null, text: rawText }];
-
   const hit = pageBlocks.find(p => p.text.toLowerCase().includes(query));
-  if (hit && pdfViewerDoc) {
+  if (hit) {
     pdfCurrentPage = hit.num || 1;
-    renderPdfPage(pdfCurrentPage);
     resultEl.textContent = `Jumped to page ${pdfCurrentPage}`;
-  } else if (hit) {
-    resultEl.textContent = `Found on page ${hit.num}`;
+    if (currentView === 'pdf' && pdfViewerDoc) renderPdfPage(pdfCurrentPage);
+    else renderTextView(pdfCurrentPage);
   } else {
     resultEl.textContent = 'Not found';
   }
 }
+
 
 
 function getRelevantChunks(text, query, maxChars) {
