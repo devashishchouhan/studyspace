@@ -2765,10 +2765,16 @@ function getRelevantChunks(text, query, maxChars) {
 }
 
 async function getCurrentPageBase64() {
-  const canvas = document.querySelector('#previewBody canvas');
-  if (!canvas) return null;
+  if (!pdfViewerDoc) return null;
   try {
-    return canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+    const page = await pdfViewerDoc.getPage(pdfCurrentPage);
+    const viewport = page.getViewport({ scale: 2.5 }); // high-res for AI reading
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
   } catch(e) { return null; }
 }
 
