@@ -1687,7 +1687,7 @@ Make questions clear, concise, and exam-relevant. Include definitions, formulas,
       body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
-    const text = data.content[0].text;
+    const text = data?.content?.[0]?.text || '';
     const cards = JSON.parse(text.replace(/```json|```/g, '').trim());
 
     for (const card of cards) {
@@ -1756,7 +1756,7 @@ Respond ONLY with valid JSON, no markdown:
       body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
-    const text = data.content[0].text;
+    const text = data?.content?.[0]?.text || '';
     const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
 
     quizData.questions = parsed.questions;
@@ -2081,7 +2081,7 @@ ${getRelevantChunks(selectedDoubtBook.text_content, question, 3000)}` : 'Use sta
       })
     });
     const data = await res.json();
-    const reply = data.content[0].text;
+    const reply = data?.content?.[0]?.text || 'Sorry, I could not generate a response. Please try again.';
     chatHistory.push({ role: 'assistant', content: reply });
     typingEl.remove();
     addMessage('ai', reply, false, null);
