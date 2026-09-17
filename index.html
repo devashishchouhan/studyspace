@@ -1714,7 +1714,7 @@
 const SUPABASE_URL = 'https://vbqjtpfqrktwgfefzmbf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZicWp0cGZxcmt0d2dmZWZ6bWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDU5MjAsImV4cCI6MjEwNTEyMTkyMH0._Obsduv7-cHn52jg6-Lsg1DVfdn6_khaYHHjBfT1NBE';
 const CLAUDE_API = '/api/groq';
-const GROQ_MODEL = 'qwen/qwen3.6-27b';
+const GROQ_MODEL = 'openai/gpt-oss-120b';
 
 const SUBJECTS = [
   { name: 'Mathematics', emoji: '📐', color: '#6366f1', tag: 'tag-math' },
@@ -2764,20 +2764,6 @@ function getRelevantChunks(text, query, maxChars) {
   return result.substring(0, maxChars);
 }
 
-async function getCurrentPageBase64() {
-  if (!pdfViewerDoc) return null;
-  try {
-    const page = await pdfViewerDoc.getPage(pdfCurrentPage);
-    const viewport = page.getViewport({ scale: 2.5 }); // high-res for AI reading
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
-  } catch(e) { return null; }
-}
-
 async function sendDoubt() {
   const input = document.getElementById('chatInput');
   const question = input.value.trim();
@@ -2823,33 +2809,12 @@ CONVERSATION STYLE:
 - After every explanation, end with ONE follow-up question or prompt to keep the conversation going
 - If asked a vague question, ask a clarifying question before answering
 
-${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}). Page ${pdfCurrentPage} of the book is shown as an image — read it carefully and answer ONLY from what is explicitly visible on the page. Do not add any information that is not present on the page. If the answer is not on this page, say so clearly.` : 'Use standard CBSE Class 9 curriculum.'}`;
+${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
+Answer ONLY from the book content below. Do not add information not present in these pages.
+Relevant pages:
+${getRelevantChunks(selectedDoubtBook.text_content, question, 4000)}` : 'Use standard CBSE Class 9 curriculum.'}`;
 
   try {
-    // Get current PDF page as image if available
-    const pageImage = pdfViewerDoc ? await getCurrentPageBase64() : null;
-
-    // Build message content — image + question for vision model
-    let userContent;
-    if (pageImage) {
-      userContent = [
-        {
-          type: 'image_url',
-          image_url: { url: `data:image/jpeg;base64,${pageImage}` }
-        },
-        { type: 'text', text: question }
-      ];
-    } else {
-      userContent = question;
-    }
-
-    // Build messages — use vision content for latest message only
-    const historyMessages = chatHistory.slice(-10, -1); // all except last user msg
-    const messages = [
-      ...historyMessages,
-      { role: 'user', content: userContent }
-    ];
-
     const res = await fetch(CLAUDE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2858,8 +2823,8 @@ ${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubt
         max_tokens: 1500,
         messages: [
           { role: 'system', content: systemPrompt },
-          ...historyMessages,
-          { role: 'user', content: userContent }
+          ...chatHistory.slice(-10, -1),
+          { role: 'user', content: question }
         ]
       })
     });
