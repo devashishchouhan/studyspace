@@ -1,4 +1,4 @@
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -8,12 +8,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Groq API key not configured' });
   }
 
-  let body = req.body;
-  if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch(e) {}
-  }
-
-  const { model, messages, system, max_tokens } = body || {};
+  const { model, messages, system, max_tokens } = req.body || {};
 
   if (!messages || !messages.length) {
     return res.status(400).json({ error: 'No messages provided' });
