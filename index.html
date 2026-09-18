@@ -2452,18 +2452,53 @@ async function renderFCSetup() {
     </div>`;
     return;
   }
-  container.innerHTML = books.map(b => `
-    <div class="quiz-opt ${fcData.selectedBook?.id === b.id ? 'selected' : ''}" style="text-align:left;margin-bottom:8px" onclick="selectFCBook('${b.id}')">
-      <span class="opt-emoji">${getSubjectEmoji(b.subject)}</span>
-      <div class="opt-name">${b.name}</div>
-      <div class="opt-count">${b.subject}</div>
-    </div>`).join('');
+
+  // Filter out intro, appendix, chapter 0 books
+  function isSkippable(name) {
+    const n = name.toLowerCase();
+    return /intro|appendix|preface|foreword|_0[._\s]|\.0[._\s]|\s0\s/.test(n) ||
+           /\b0\b/.test(n.replace(/[^a-z0-9\s]/g, ' ').trim().split(/\s+/).find(w => /^\d+$/.test(w)) || '');
+  }
+
+  const validBooks = books.filter(b => !isSkippable(b.name));
+
+  const SUBJECT_ORDER = ['Mathematics', 'Science', 'Social Studies', 'English', 'Hindi', 'Sanskrit'];
+  const grouped = {};
+  validBooks.forEach(b => {
+    const s = b.subject || 'Other';
+    if (!grouped[s]) grouped[s] = [];
+    grouped[s].push(b);
+  });
+  Object.keys(grouped).forEach(s => {
+    grouped[s].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  });
+
+  const orderedSubjects = [
+    ...SUBJECT_ORDER.filter(s => grouped[s]),
+    ...Object.keys(grouped).filter(s => !SUBJECT_ORDER.includes(s))
+  ];
+
+  container.innerHTML = orderedSubjects.map(subject => {
+    const subBooks = grouped[subject];
+    const emoji = getSubjectEmoji(subject);
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;padding:4px 0;margin-bottom:6px;border-bottom:1px solid var(--border)">${emoji} ${subject}</div>
+      ${subBooks.map(b => {
+        const cleanName = b.name.replace(/_/g, ' ')
+          .replace(/^(Mathematics|Mathematcis|Science|Social\s*Studies?|Social\s*Science|English|Hindi|Sanskrit)\s*\.?\s*/i, '')
+          .trim();
+        return `<div class="quiz-opt ${fcData.selectedBook?.id === b.id ? 'selected' : ''}" style="text-align:left;margin-bottom:6px" onclick="selectFCBook('${b.id}', this)">
+          <div class="opt-name" style="font-size:13px">${cleanName}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
 }
 
-function selectFCBook(id) {
+function selectFCBook(id, el) {
   fcData.selectedBook = books.find(b => b.id === id);
-  document.querySelectorAll('#fcBookPicker .quiz-opt').forEach(el => el.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
+  document.querySelectorAll('#fcBookPicker .quiz-opt').forEach(e => e.classList.remove('selected'));
+  if (el) el.classList.add('selected');
   document.getElementById('startFCBtn').disabled = false;
 }
 
