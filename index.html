@@ -434,9 +434,9 @@
   .btn-primary {
     background: var(--accent);
     color: white;
-    width: 100%;
   }
 
+  .btn-primary.full-width { width: 100%; }
   .btn-primary:hover { background: var(--accent-hover); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -1555,7 +1555,7 @@
           <option value="20">20 questions</option>
         </select>
       </div>
-      <button class="btn btn-primary" id="startQuizBtn" onclick="startQuiz()" disabled>Generate Quiz</button>
+      <button class="btn btn-primary full-width" id="startQuizBtn" onclick="startQuiz()" disabled>Generate Quiz</button>
     </div>
 
     <div id="quizActive" class="quiz-active" style="display:none">
@@ -1570,7 +1570,7 @@
       <div class="quiz-choices" id="quizChoices"></div>
       <div class="quiz-feedback" id="quizFeedback"></div>
       <div class="quiz-next show" id="quizNextWrap" style="display:none">
-        <button class="btn btn-primary" onclick="nextQuestion()">Next →</button>
+        <button class="btn btn-primary full-width" onclick="nextQuestion()">Next →</button>
       </div>
     </div>
 
@@ -1582,7 +1582,7 @@
         <div class="stat-card"><div class="stat-label">Score</div><div class="stat-value" id="quizFinalScore">-</div></div>
         <div class="stat-card"><div class="stat-label">Accuracy</div><div class="stat-value" id="quizFinalAcc">-</div></div>
       </div>
-      <button class="btn btn-primary" onclick="resetQuiz()">Try Again</button>
+      <button class="btn btn-primary full-width" onclick="resetQuiz()">Try Again</button>
     </div>
 
   </div>
@@ -1591,12 +1591,12 @@
   <div class="page" id="page-flashcards">
 
     <div id="fcSetup" class="flashcard-setup">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px">
         <div>
           <h1 style="margin:0">Flashcards</h1>
-          <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted)">Double-click a book to start, or select and click Start</p>
+          <p style="margin:4px 0 0;font-size:12px;color:var(--text-muted)">Double-click a book to start, or select then click Start</p>
         </div>
-        <button class="btn btn-primary" id="startFCBtn" onclick="startFlashcards()" disabled style="flex-shrink:0">Start ›</button>
+        <button class="btn btn-primary" id="startFCBtn" onclick="startFlashcards()" disabled style="flex-shrink:0;width:auto;padding:8px 20px">Start ›</button>
       </div>
       <div id="fcBookPicker" style="margin-bottom:24px"></div>
     </div>
@@ -1748,7 +1748,7 @@
       <label>Notes (optional)</label>
       <textarea id="logNotes" placeholder="What did you cover?"></textarea>
     </div>
-    <button class="btn btn-primary" onclick="saveSession()">Save Session</button>
+    <button class="btn btn-primary full-width" onclick="saveSession()">Save Session</button>
   </div>
 </div>
 
