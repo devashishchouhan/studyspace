@@ -623,6 +623,239 @@
   .pin-modal-btns { display: flex; gap: 8px; }
   .pin-modal-btns button { flex: 1; }
 
+  /* ========== KID THEME — ALL TABS ========== */
+
+  /* Page headers — comic style */
+  .books-header h1,
+  .copies-subject-group h1,
+  #page-quiz h1,
+  #page-saved h1,
+  #page-copies h1 {
+    font-family: 'Bangers', cursive;
+    letter-spacing: 2px;
+    font-size: 28px;
+    font-weight: 400;
+  }
+
+  /* BOOKS TAB */
+  .upload-area {
+    border: 2px dashed rgba(33,102,192,0.4);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(33,102,192,0.05) 0%, rgba(200,16,46,0.03) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-area::before {
+    content: '🦾';
+    position: absolute; top: 12px; right: 16px;
+    font-size: 28px; opacity: 0.3;
+  }
+
+  .upload-area:hover, .upload-area.drag {
+    border-color: var(--ca-red);
+    background: rgba(200,16,46,0.06);
+  }
+
+  .upload-area h3::before { content: '⚡ '; }
+
+  .book-card {
+    border-top: 3px solid var(--ca-blue);
+    transition: all 0.2s;
+  }
+
+  .book-card:nth-child(4n+1) { border-top-color: var(--ca-blue); }
+  .book-card:nth-child(4n+2) { border-top-color: var(--ca-red); }
+  .book-card:nth-child(4n+3) { border-top-color: var(--ca-gold); }
+  .book-card:nth-child(4n+4) { border-top-color: var(--green); }
+
+  .book-card:hover {
+    border-color: var(--ca-red);
+    transform: translateY(-3px) rotate(0.5deg);
+    box-shadow: 0 8px 24px rgba(200,16,46,0.15);
+  }
+
+  .book-status.ready { background: rgba(16,185,129,0.15); color: #10b981; }
+
+  /* QUIZ TAB */
+  #page-quiz h1 { color: var(--ca-gold); }
+  #page-quiz > p { font-size: 13px; color: var(--text-muted); }
+
+  .quiz-opt {
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .quiz-opt::after {
+    content: '›';
+    position: absolute; right: 16px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px; color: var(--text-muted);
+    transition: all 0.2s;
+  }
+
+  .quiz-opt:hover {
+    border-color: var(--ca-blue);
+    background: rgba(33,102,192,0.08);
+    transform: translateX(4px);
+  }
+
+  .quiz-opt:hover::after { color: var(--ca-blue); right: 12px; }
+
+  .quiz-opt.selected {
+    border-color: var(--ca-red);
+    background: rgba(200,16,46,0.08);
+  }
+
+  .quiz-opt .opt-emoji { font-size: 28px; }
+  .quiz-opt .opt-name { font-size: 14px; font-weight: 700; }
+
+  /* FLASHCARDS TAB */
+  .flashcard-setup h1 {
+    font-family: 'Bangers', cursive;
+    letter-spacing: 2px;
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--ca-gold);
+  }
+
+  .flashcard-wrapper {
+    perspective: 1000px;
+    margin-bottom: 24px;
+    min-height: 240px;
+  }
+
+  .flashcard {
+    border: 2px solid var(--ca-blue);
+    background: linear-gradient(135deg, var(--card) 0%, rgba(33,102,192,0.1) 100%);
+  }
+
+  .flashcard.flipped { border-color: var(--ca-red); }
+
+  .card-side.card-front .card-tag { color: var(--ca-blue); }
+  .card-side.card-back .card-tag { color: var(--ca-red); }
+
+  .card-text { font-size: 16px; font-weight: 700; line-height: 1.5; }
+
+  .fc-btn.again {
+    background: rgba(200,16,46,0.12);
+    color: var(--ca-red);
+    border: 2px solid rgba(200,16,46,0.3);
+    font-weight: 800;
+  }
+
+  .fc-btn.good {
+    background: rgba(16,185,129,0.12);
+    color: var(--green);
+    border: 2px solid rgba(16,185,129,0.3);
+    font-weight: 800;
+  }
+
+  #fcBookPicker .quiz-opt { text-align: left; margin-bottom: 6px; }
+  #fcBookPicker .quiz-opt .opt-name { font-size: 13px; }
+
+  /* COPIES TAB */
+  .copies-subject-title {
+    font-family: 'Bangers', cursive;
+    letter-spacing: 1.5px;
+    font-size: 15px;
+    font-weight: 400;
+    border-left: 4px solid var(--ca-blue);
+    border-radius: 0 8px 8px 0;
+    padding-left: 14px;
+  }
+
+  .copy-item {
+    border-left: 3px solid transparent;
+    transition: border-color 0.15s;
+  }
+
+  .copy-item:hover { border-left-color: var(--ca-blue); }
+  .copy-item.completed { border-left-color: var(--green); }
+
+  .copy-checkbox {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--ca-blue);
+  }
+
+  .copy-checkbox.checked {
+    background: var(--green);
+    border-color: var(--green);
+    font-weight: 900;
+  }
+
+  .copy-status-badge.done { background: rgba(16,185,129,0.15); color: var(--green); }
+  .copy-status-badge.pending { background: rgba(200,16,46,0.12); color: var(--ca-red); }
+
+  /* SAVED TAB */
+  #page-saved h1 { color: var(--ca-gold); }
+
+  .saved-subject-title {
+    font-family: 'Bangers', cursive;
+    letter-spacing: 1.5px;
+    font-size: 16px;
+    font-weight: 400;
+    border-bottom: 2px solid rgba(33,102,192,0.3);
+    padding-bottom: 8px;
+  }
+
+  .saved-chapter-title {
+    font-weight: 700;
+    border-left: 3px solid var(--ca-blue);
+    padding-left: 10px;
+  }
+
+  .saved-answer-item:hover { background: rgba(33,102,192,0.04); }
+
+  /* ASK AI — Buddy theme */
+  .doubt-chat .msg.ai .msg-bubble {
+    border-left: 3px solid var(--ca-blue);
+    border-radius: 0 14px 14px 14px;
+  }
+
+  .msg-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+    border: 2px solid var(--border);
+  }
+
+  .msg.ai .msg-avatar { background: rgba(33,102,192,0.15); border-color: var(--ca-blue); }
+  .msg.user .msg-avatar { background: rgba(200,16,46,0.12); border-color: var(--ca-red); }
+
+  /* Section titles — all tabs */
+  .section-title {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  /* Btn primary CA style */
+  .btn-primary {
+    background: var(--ca-blue);
+    font-weight: 700;
+  }
+
+  .btn-primary:hover { background: var(--accent-hover); }
+
+  /* Log session btn */
+  .log-btn {
+    background: rgba(33,102,192,0.1);
+    border: 1px dashed rgba(33,102,192,0.4);
+    color: var(--ca-blue);
+    font-weight: 700;
+  }
+
+  .log-btn:hover {
+    background: rgba(33,102,192,0.18);
+    border-color: var(--ca-blue);
+  }
+
+  /* ========== END KID THEME ========== */
+
   .books-header {
     display: flex; justify-content: space-between; align-items: flex-end;
     margin: 32px 0 24px;
@@ -1724,8 +1957,8 @@
   <div class="page" id="page-books">
     <div class="books-header">
       <div>
-        <h1>Books</h1>
-        <p style="font-size:14px;color:var(--text-muted);margin-top:4px;">Upload CBSE textbooks — AI will extract content automatically</p>
+        <h1>📚 Arsenal of Knowledge</h1>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px">Upload your CBSE textbooks — Iron Man's AI will extract content automatically 🦾</p>
       </div>
     </div>
 
@@ -1743,8 +1976,8 @@
   <div class="page" id="page-quiz">
 
     <div id="quizSetup" class="quiz-setup">
-      <h1>Quiz</h1>
-      <p>Choose a subject to test yourself</p>
+      <h1>⚡ Battle Quiz!</h1>
+      <p>Pick your subject and prove your power, hero! 🦸</p>
       <div class="quiz-options" id="quizSubjectPicker"></div>
       <div class="field">
         <label>Number of questions</label>
@@ -1793,8 +2026,8 @@
     <div id="fcSetup" class="flashcard-setup">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px">
         <div>
-          <h1 style="margin:0">Flashcards</h1>
-          <p style="margin:4px 0 0;font-size:12px;color:var(--text-muted)">Double-click a book to start, or select then click Start</p>
+          <h1 style="margin:0">🃏 Memory Cards!</h1>
+          <p style="margin:4px 0 0;font-size:12px;color:var(--text-muted)">Double-click a book to start — flip to reveal answers, Pokémon style! ⚡</p>
         </div>
         <button class="btn btn-primary" id="startFCBtn" onclick="startFlashcards()" disabled style="flex-shrink:0;width:auto;padding:8px 20px">Start ›</button>
       </div>
@@ -1833,8 +2066,8 @@
   <div class="page" id="page-copies">
     <div class="books-header">
       <div>
-        <h1>Aarav's Class Work Copies</h1>
-        <p style="font-size:13px;color:var(--text-muted);margin-top:4px">Track copy completion, upload scans, and add remarks</p>
+        <h1>📋 Aarav's Copy Mission</h1>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px">Track copy completion, upload scans — Hulk says SMASH that checkbox! 💪</p>
       </div>
     </div>
     <div id="copiesContainer">
@@ -1845,8 +2078,8 @@
   <div class="page" id="page-saved">
     <div class="books-header">
       <div>
-        <h1>Saved Answers</h1>
-        <p style="font-size:13px;color:var(--text-muted);margin-top:4px">AI explanations you've saved, organised by subject and chapter</p>
+        <h1>🏆 Knowledge Trophy Room</h1>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:4px">Your saved AI explanations — organised by subject and chapter</p>
       </div>
       <button class="btn btn-ghost" onclick="exportAllSaved()" style="font-size:13px">⬇ Export All</button>
     </div>
@@ -2524,15 +2757,25 @@ Make questions clear, concise, and exam-relevant. Include definitions, important
 
 // ==================== QUIZ ====================
 function renderQuizSetup() {
+  const mascots = {
+    'Mathematics': '⚡ Thor says: Calculate or be zapped!',
+    'Science': '🕷️ Spidey senses tingling — science time!',
+    'Social Studies': '🌍 Captain Planet needs you!',
+    'English': '📖 Hermione approves this subject!',
+    'Hindi': '🦁 Simba roars in Hindi!',
+    'Sanskrit': '🕉️ Ancient wisdom unlocked!'
+  };
   const container = document.getElementById('quizSubjectPicker');
   container.innerHTML = SUBJECTS.map(sub => {
     const bookCount = books.filter(b => b.subject === sub.name).length;
     const selected = quizData.selectedSubject === sub.name;
+    const mascot = mascots[sub.name] || '';
     return `
       <button class="quiz-opt ${selected ? 'selected' : ''}" onclick="selectQuizSubject('${sub.name}')">
         <span class="opt-emoji">${sub.emoji}</span>
         <div class="opt-name">${sub.name}</div>
-        <div class="opt-count">${bookCount} book${bookCount !== 1 ? 's' : ''}</div>
+        <div class="opt-count" style="font-size:10px;font-style:italic;margin-top:4px;color:var(--text-muted)">${mascot}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${bookCount} book${bookCount !== 1 ? 's' : ''}</div>
       </button>`;
   }).join('');
 }
