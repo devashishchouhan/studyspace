@@ -2734,7 +2734,21 @@ function renderTextView(pageNum) {
     .map(l => l.replace(/[\uFFFD\u25A1\u25A0□▯]/g, '').trim())
     .filter(l => l.length > 2 && !/^\d{1,2}$/.test(l));
 
-  if (!lines.length) {
+  // Join broken lines — if a line doesn't end with punctuation and next line
+  // starts lowercase or mid-sentence, merge them
+  const joined = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const next = lines[i + 1];
+    if (next && !/[.!?:]\s*$/.test(line) && /^[a-z,]/.test(next)) {
+      joined.push(line + ' ' + next);
+      i++; // skip next
+    } else {
+      joined.push(line);
+    }
+  }
+
+  if (!joined.length) {
     body.innerHTML = `<div class="chapter-empty">
       <div style="font-size:24px;margin-bottom:10px">🖼️</div>
       <p style="font-size:13px;color:var(--text-muted)">This page is mostly diagrams — no readable text to show.</p>
@@ -2745,7 +2759,7 @@ function renderTextView(pageNum) {
 
   body.innerHTML = `
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:12px">Page ${page.num || ''}</div>
-    <div style="font-size:13px;line-height:1.9;color:var(--text-dim);white-space:pre-wrap;user-select:text;cursor:text">${escapeHtml(lines.join('\n'))}</div>
+    <div style="font-size:13px;line-height:1.9;color:var(--text-dim);user-select:text;cursor:text">${joined.map(l => `<p style="margin:0 0 6px">${escapeHtml(l)}</p>`).join('')}</div>
   `;
 }
 
