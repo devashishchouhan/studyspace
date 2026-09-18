@@ -3736,56 +3736,107 @@ function renderTextView(pageNum) {
 }
 
 async function renderPdfPage(pageNum) {
-  if (!pdfViewerDoc || pdfRendering) return;
-  pdfRendering = true;
+  if (!pdfViewerDoc) return;
 
   const body = document.getElementById('previewBody');
   const pageInfo = document.getElementById('pdfPageInfo');
-  if (pageInfo) pageInfo.textContent = `Page ${pageNum} / ${pdfTotalPages}`;
 
-  try {
-    const page = await pdfViewerDoc.getPage(pageNum);
-    const containerWidth = body.clientWidth - 32 || 400;
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = containerWidth / viewport.width;
-    const scaledViewport = page.getViewport({ scale });
-
-    const canvas = document.createElement('canvas');
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = scaledViewport.width * dpr;
-    canvas.height = scaledViewport.height * dpr;
-    canvas.style.cssText = `width:${scaledViewport.width}px;height:${scaledViewport.height}px;display:block;border-radius:6px;`;
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-
-    body.innerHTML = '';
-    body.style.overflowY = 'auto';
-    body.style.overflowX = 'hidden';
-    body.style.padding = '12px';
-    body.style.background = '#525659';
-    body.appendChild(canvas);
-
-    await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
-  } catch(e) {
-    body.innerHTML = `<div class="chapter-empty"><p style="color:var(--red)">Error rendering page.</p></div>`;
+  // If already rendered all pages, just scroll to the target page
+  const existing = document.getElementById(`pdf-canvas-page-${pageNum}`);
+  if (existing && body.querySelectorAll('.pdf-page-canvas').length === pdfTotalPages) {
+    existing.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (pageInfo) pageInfo.textContent = `Page ${pageNum} / ${pdfTotalPages}`;
+    pdfCurrentPage = pageNum;
+    return;
   }
 
-  pdfRendering = false;
+  // Render all pages scrollably
+  if (pageInfo) pageInfo.textContent = `Loading… / ${pdfTotalPages}`;
+  body.innerHTML = '';
+  body.style.overflowY = 'auto';
+  body.style.overflowX = 'hidden';
+  body.style.padding = '8px';
+  body.style.background = '#525659';
+
+  const containerWidth = body.clientWidth - 16 || 400;
+
+  for (let i = 1; i <= pdfTotalPages; i++) {
+    try {
+      const page = await pdfViewerDoc.getPage(i);
+      const viewport = page.getViewport({ scale: 1 });
+      const scale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
+
+      const wrapper = document.createElement('div');
+      wrapper.id = `pdf-canvas-page-${i}`;
+      wrapper.className = 'pdf-page-canvas';
+      wrapper.style.cssText = 'margin-bottom:8px;position:relative;';
+
+      const canvas = document.createElement('canvas');
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = scaledViewport.width * dpr;
+      canvas.height = scaledViewport.height * dpr;
+      canvas.style.cssText = `width:${scaledViewport.width}px;height:${scaledViewport.height}px;display:block;border-radius:4px;`;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      wrapper.appendChild(canvas);
+      body.appendChild(wrapper);
+
+      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+
+      if (pageInfo) pageInfo.textContent = `Page ${i} / ${pdfTotalPages}`;
+    } catch(e) { console.warn('Page render error:', i, e); }
+  }
+
+  if (pageInfo) pageInfo.textContent = `Page ${pageNum} / ${pdfTotalPages}`;
+  pdfCurrentPage = pageNum;
+
+  // Scroll to requested page
+  setTimeout(() => {
+    const target = document.getElementById(`pdf-canvas-page-${pageNum}`);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+
+  // Update page counter on scroll
+  body.onscroll = () => {
+    const canvases = body.querySelectorAll('.pdf-page-canvas');
+    canvases.forEach(c => {
+      const rect = c.getBoundingClientRect();
+      const bodyRect = body.getBoundingClientRect();
+      if (rect.top >= bodyRect.top - 50 && rect.top < bodyRect.bottom) {
+        const num = parseInt(c.id.replace('pdf-canvas-page-', ''));
+        if (num !== pdfCurrentPage) {
+          pdfCurrentPage = num;
+          if (pageInfo) pageInfo.textContent = `Page ${num} / ${pdfTotalPages}`;
+        }
+      }
+    });
+  };
 }
 
 function pdfNextPage() {
   if (!pdfViewerDoc || pdfCurrentPage >= pdfTotalPages) return;
   pdfCurrentPage++;
-  if (currentView === 'pdf') renderPdfPage(pdfCurrentPage);
+  const target = document.getElementById(`pdf-canvas-page-${pdfCurrentPage}`);
+  const body = document.getElementById('previewBody');
+  if (target && body) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  else if (currentView === 'pdf') renderPdfPage(pdfCurrentPage);
   else renderTextView(pdfCurrentPage);
+  const pageInfo = document.getElementById('pdfPageInfo');
+  if (pageInfo) pageInfo.textContent = `Page ${pdfCurrentPage} / ${pdfTotalPages}`;
 }
 
 function pdfPrevPage() {
   if (!pdfViewerDoc || pdfCurrentPage <= 1) return;
   pdfCurrentPage--;
-  if (currentView === 'pdf') renderPdfPage(pdfCurrentPage);
+  const target = document.getElementById(`pdf-canvas-page-${pdfCurrentPage}`);
+  const body = document.getElementById('previewBody');
+  if (target && body) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  else if (currentView === 'pdf') renderPdfPage(pdfCurrentPage);
   else renderTextView(pdfCurrentPage);
+  const pageInfo = document.getElementById('pdfPageInfo');
+  if (pageInfo) pageInfo.textContent = `Page ${pdfCurrentPage} / ${pdfTotalPages}`;
 }
 
 function readerSearch() {
@@ -4365,7 +4416,22 @@ function formatMessage(text) {
     return `%%LATEX${latexBlocks.length - 1}%%`;
   });
 
-  // Step 2: Now safely escape HTML and apply markdown formatting
+  // Step 2: Convert markdown tables before escaping
+  protected_text = protected_text.replace(/^\|(.+)\|$/gm, (line) => line); // keep table lines
+  
+  // Detect and convert markdown tables
+  const tableRegex = /(\|.+\|\n\|[-| :]+\|\n(?:\|.+\|\n?)+)/g;
+  protected_text = protected_text.replace(tableRegex, (tableBlock) => {
+    const rows = tableBlock.trim().split('\n');
+    const headers = rows[0].split('|').filter(c => c.trim()).map(c => `<th style="padding:6px 10px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;text-align:left;border-bottom:2px solid var(--ca-blue)">${c.trim()}</th>`).join('');
+    const body = rows.slice(2).map(row => {
+      const cells = row.split('|').filter(c => c.trim()).map(c => `<td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-dim)">${c.trim()}</td>`).join('');
+      return `<tr>${cells}</tr>`;
+    }).join('');
+    return `%%TABLE<table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;margin:8px 0;border:1px solid var(--border)"><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>TABLE%%`;
+  });
+
+  // Step 3: Now safely escape HTML and apply markdown formatting
   let html = protected_text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -4380,7 +4446,10 @@ function formatMessage(text) {
     .replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">')
     .replace(/\n/g, '<br>');
 
-  // Step 3: Restore LaTeX blocks (unescaped)
+  // Restore tables (unescaped)
+  html = html.replace(/%%TABLE([\s\S]*?)TABLE%%/g, (_, t) => t.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&'));
+
+  // Step 4: Restore LaTeX blocks (unescaped)
   html = html.replace(/%%LATEX(\d+)%%/g, (_, i) => latexBlocks[parseInt(i)]);
 
   // Step 4: Render KaTeX
