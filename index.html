@@ -484,7 +484,81 @@
   }
 
   /* BOOKS PAGE */
-  /* COPIES PAGE */
+  /* GUIDE BUBBLE */
+  .guide-bubble {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 8888;
+    max-width: 280px;
+    background: rgba(10, 22, 40, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(33,102,192,0.35);
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+
+  .guide-bubble.hidden { opacity: 0; pointer-events: none; transform: translateY(8px); }
+
+  .guide-bubble-tail {
+    font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--ca-blue); margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .guide-bubble-text {
+    font-size: 12px; font-weight: 500;
+    color: rgba(240,244,255,0.75);
+    line-height: 1.6; margin-bottom: 10px;
+  }
+
+  .guide-bubble-footer {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .guide-bubble-steps {
+    font-size: 10px; color: var(--text-muted); font-weight: 600;
+  }
+
+  .guide-bubble-nav { display: flex; gap: 6px; }
+
+  .guide-nav-btn {
+    background: var(--surface); border: 1px solid var(--border-light);
+    border-radius: 6px; color: var(--text-dim);
+    font-size: 11px; font-weight: 700;
+    padding: 4px 10px; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+
+  .guide-nav-btn:hover { background: var(--ca-blue); color: white; border-color: var(--ca-blue); }
+  .guide-nav-btn.next { background: var(--ca-blue); color: white; border-color: var(--ca-blue); }
+  .guide-nav-btn.next:hover { background: var(--accent-hover); }
+
+  .guide-toggle-btn {
+    position: fixed; bottom: 24px; left: 24px; z-index: 8889;
+    background: rgba(10,22,40,0.9); border: 1px solid rgba(33,102,192,0.4);
+    border-radius: 50%; width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.2s;
+  }
+
+  .guide-toggle-btn:hover { background: var(--ca-blue); transform: scale(1.1); }
+
+  .guide-progress-dots {
+    display: flex; gap: 4px; align-items: center; margin-bottom: 8px;
+  }
+
+  .guide-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--border-light); transition: background 0.2s;
+  }
+
+  .guide-dot.active { background: var(--ca-blue); width: 14px; border-radius: 3px; }
   .copies-subject-group { margin-bottom: 28px; }
 
   .copies-subject-books {
@@ -4641,5 +4715,112 @@ async function init() {
 
 init();
 </script>
+<div class="guide-bubble" id="guideBubble">
+  <div class="guide-progress-dots" id="guideDots"></div>
+  <div class="guide-bubble-tail">
+    <span>🗺️</span>
+    <span id="guideTabLabel">HOME</span>
+  </div>
+  <div class="guide-bubble-text" id="guideText"></div>
+  <div class="guide-bubble-footer">
+    <span class="guide-bubble-steps" id="guideStepLabel">1 / 7</span>
+    <div class="guide-bubble-nav">
+      <button class="guide-nav-btn" onclick="guidePrev()">‹ Prev</button>
+      <button class="guide-nav-btn next" onclick="guideNext()">Next ›</button>
+      <button class="guide-nav-btn" onclick="toggleGuide()" title="Hide guide" style="padding:4px 7px">✕</button>
+    </div>
+  </div>
+</div>
+
+<button class="guide-toggle-btn" id="guideToggleBtn" style="display:none" onclick="toggleGuide()" title="Open guide">🗺️</button>
+
+<script>
+// ==================== GUIDE ====================
+const GUIDE_STEPS = [
+  {
+    tab: 'dashboard',
+    label: 'HOME',
+    text: '👋 Welcome to Aarav\'s HQ! This is your home base.\n\n📊 The 4 KPI cards show your study hours, topics done, quiz score and books loaded.\n\n⏱️ To log a study session, click ⚡ START SESSION in "Today\'s Mission". The timer will run automatically and save when you\'re done or go inactive for 4 mins.'
+  },
+  {
+    tab: 'books',
+    label: 'BOOKS',
+    text: '📚 73 books are already uploaded and ready to use!\n\nTo upload more: drag & drop any CBSE PDF onto the upload zone, or click it to browse. Max 100MB per file.\n\nBooks are organised by subject — Mathematics, Science, Social Studies, English, Hindi and Sanskrit.'
+  },
+  {
+    tab: 'copies',
+    label: 'COPIES',
+    text: '📋 Track Aarav\'s class work copies here.\n\n✅ Click the circle checkbox to mark a chapter\'s copy as Done.\n\n📎 Click "Upload Copy" to attach a PDF scan of the copy — you can then view or download it anytime.\n\n💬 Aarav can add a remark explaining any delay.\n\n🔒 Senior remarks (Nani/Maa) need PIN 1984 to unlock. Once a senior adds a remark, it cannot be changed by Aarav.'
+  },
+  {
+    tab: 'quiz',
+    label: 'QUIZ',
+    text: '⚡ Battle Quiz tests Aarav\'s knowledge!\n\n1. Pick a subject from the 6 cards\n2. Choose how many questions (5–20)\n3. Click ⚡ Generate Quiz\n\nThe AI reads the uploaded books and creates questions specific to that subject. Results are saved and shown in the Quiz Score KPI on Home.'
+  },
+  {
+    tab: 'flashcards',
+    label: 'CARDS',
+    text: '🃏 Memory Cards for quick revision!\n\n1. Click any subject to expand its chapters\n2. Click a chapter to select it\n3. Double-click or press Start › to begin\n\nCards are AI-generated from the book content. Flip each card to reveal the answer. Hit "Got it ✓" or "Again 🔄" to track what you know.'
+  },
+  {
+    tab: 'doubt',
+    label: 'ASK AI',
+    text: '🤖 Buddy is your personal Class 9 tutor!\n\n📖 Select a book from the left sidebar — click a subject to expand chapters.\n\n‹ › Use the collapse button (‹) to hide the book list and get more screen space.\n\n📄 PDF view shows the actual book. Switch to Text view to select and copy any paragraph, then paste it in the chat for Buddy to explain.\n\n💬 Just type any doubt in the chat box — Buddy answers from the book!'
+  },
+  {
+    tab: 'saved',
+    label: 'SAVED',
+    text: '🏆 Knowledge Trophy Room saves Buddy\'s best answers!\n\n🔖 While chatting with Buddy, hover over any AI response and click the 🔖 bookmark icon to save it.\n\nSaved answers are organised by Subject → Chapter so you can find them fast during revision.\n\n⬇ Use the Export button to download answers as a text file — perfect for offline study!'
+  }
+];
+
+let guideStep = 0;
+let guideVisible = true;
+
+function renderGuide() {
+  const step = GUIDE_STEPS[guideStep];
+  document.getElementById('guideTabLabel').textContent = step.label;
+  document.getElementById('guideText').textContent = step.text;
+  document.getElementById('guideStepLabel').textContent = `${guideStep + 1} / ${GUIDE_STEPS.length}`;
+
+  // Progress dots
+  const dots = document.getElementById('guideDots');
+  dots.innerHTML = GUIDE_STEPS.map((_, i) =>
+    `<div class="guide-dot ${i === guideStep ? 'active' : ''}"></div>`
+  ).join('');
+
+  // Update prev button
+  const prevBtn = document.querySelector('.guide-nav-btn:not(.next):not([title])');
+  if (prevBtn) prevBtn.style.opacity = guideStep === 0 ? '0.3' : '1';
+}
+
+function guideNext() {
+  if (guideStep < GUIDE_STEPS.length - 1) {
+    guideStep++;
+    navigate(GUIDE_STEPS[guideStep].tab);
+    renderGuide();
+  }
+}
+
+function guidePrev() {
+  if (guideStep > 0) {
+    guideStep--;
+    navigate(GUIDE_STEPS[guideStep].tab);
+    renderGuide();
+  }
+}
+
+function toggleGuide() {
+  guideVisible = !guideVisible;
+  const bubble = document.getElementById('guideBubble');
+  const toggleBtn = document.getElementById('guideToggleBtn');
+  bubble.classList.toggle('hidden', !guideVisible);
+  toggleBtn.style.display = guideVisible ? 'none' : 'flex';
+}
+
+// Init guide
+renderGuide();
+</script>
+
 </body>
 </html>
