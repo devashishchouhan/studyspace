@@ -1097,16 +1097,17 @@
 
   .subject-accordion {
     border-radius: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     overflow: hidden;
     border: 1px solid transparent;
+    flex-shrink: 0;
   }
 
   .subject-accordion-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 7px 10px;
+    padding: 6px 10px;
     font-size: 11px;
     font-weight: 700;
     color: var(--text-muted);
@@ -1116,6 +1117,7 @@
     border-radius: 6px;
     transition: background 0.15s, color 0.15s;
     user-select: none;
+    flex-shrink: 0;
   }
 
   .subject-accordion-header:hover { background: var(--card-hover); color: var(--text-dim); }
@@ -1132,10 +1134,14 @@
   .subject-accordion-books {
     display: none;
     flex-direction: column;
-    gap: 2px;
-    padding: 4px 4px 4px 8px;
+    gap: 1px;
+    padding: 4px 4px 4px 6px;
     background: rgba(0,0,0,0.15);
     border-radius: 0 0 6px 6px;
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
   }
 
   .subject-accordion-header.open + .subject-accordion-books { display: flex; }
@@ -2576,10 +2582,16 @@ function renderDoubtBooks() {
         <span class="subject-accordion-arrow">›</span>
       </div>
       <div class="subject-accordion-books">
-        ${subBooks.map(b => `
+      ${subBooks.map(b => {
+        // Strip subject prefix from name for cleaner display
+        const cleanName = b.name.replace(/_/g, ' ')
+          .replace(/^(Mathematics|Mathematcis|Science|Social\s*Studies?|Social\s*Science|English|Hindi|Sanskrit)\s*\.?\s*/i, '')
+          .trim();
+        return `
         <div class="book-select-item ${selectedDoubtBook?.id === b.id ? 'selected' : ''}" onclick="selectDoubtBook('${b.id}')">
-          <div class="book-select-name">${b.name.replace(/_/g, ' ')}</div>
-        </div>`).join('')}
+          <div class="book-select-name">${cleanName}</div>
+        </div>`;
+      }).join('')}
       </div>
     </div>`;
   });
