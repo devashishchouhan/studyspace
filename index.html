@@ -3903,9 +3903,20 @@ CONVERSATION STYLE:
 - If asked a vague question, ask a clarifying question before answering
 
 ${selectedDoubtBook ? `BOOK CONTEXT: You are answering based on "${selectedDoubtBook.name}" (${selectedDoubtBook.subject}).
-Answer ONLY from the book content below. Do not add information not present in these pages.
-Relevant content:
-${getRelevantChunks(selectedDoubtBook.text_content, question, 6000)}` : 'Use standard CBSE Class 9 curriculum.'}`;
+Answer from the complete chapter text below. The student is currently viewing Page ${pdfCurrentPage}.
+Answer ONLY from what is present in the text — do not add outside information.
+
+Full chapter text:
+${(() => {
+  const raw = selectedDoubtBook.text_content || '';
+  // Strip page markers and compress whitespace to save tokens
+  return raw
+    .replace(/\[PAGE \d+\]/g, '\n---\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .substring(0, 28000);
+})()}` : 'Use standard CBSE Class 9 curriculum.'}`;
 
   try {
     const res = await fetch(CLAUDE_API, {
