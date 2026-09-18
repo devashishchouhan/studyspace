@@ -450,13 +450,22 @@
   /* COPIES PAGE */
   .copies-subject-group { margin-bottom: 28px; }
 
+  .copies-subject-books {
+    margin-top: 4px;
+  }
+
   .copies-subject-title {
     font-size: 13px; font-weight: 700; color: var(--text-dim);
     text-transform: uppercase; letter-spacing: 0.06em;
-    margin-bottom: 10px; padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px; padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
     display: flex; align-items: center; gap: 8px;
+    transition: background 0.15s;
   }
+
+  .copies-subject-title:hover { background: var(--card-hover); }
 
   .copy-item {
     background: var(--card);
@@ -1764,7 +1773,7 @@
   <div class="page" id="page-copies">
     <div class="books-header">
       <div>
-        <h1>Class Work Copies</h1>
+        <h1>Aarav's Class Work Copies</h1>
         <p style="font-size:13px;color:var(--text-muted);margin-top:4px">Track copy completion, upload scans, and add remarks</p>
       </div>
     </div>
@@ -3190,6 +3199,14 @@ let copyRecords = {};
 let seniorUnlocked = false;
 let pendingSeniorBookId = null;
 
+function toggleCopiesAccordion(header) {
+  const books = header.nextElementSibling;
+  const arrow = header.querySelector('.subject-accordion-arrow');
+  const isOpen = books.style.display !== 'none';
+  books.style.display = isOpen ? 'none' : 'block';
+  arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
 async function renderCopies() {
   const container = document.getElementById('copiesContainer');
   container.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px">Loading…</div>`;
@@ -3223,9 +3240,17 @@ async function renderCopies() {
 
   let html = '';
   orderedSubjects.forEach(subject => {
+    const subBooks = grouped[subject];
+    const doneCount = subBooks.filter(b => (copyRecords[b.id] || {}).completed).length;
     html += `<div class="copies-subject-group">
-      <div class="copies-subject-title">${getSubjectEmoji(subject)} ${subject}</div>`;
-    grouped[subject].forEach(book => {
+      <div class="copies-subject-title" onclick="toggleCopiesAccordion(this)" style="cursor:pointer;user-select:none">
+        <span>${getSubjectEmoji(subject)} ${subject}</span>
+        <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-muted)">${doneCount}/${subBooks.length} done</span>
+        <span class="subject-accordion-arrow" style="margin-left:8px;font-size:11px">›</span>
+      </div>
+      <div class="copies-subject-books" style="display:none">`;
+
+    subBooks.forEach(book => {
       const rec = copyRecords[book.id] || {};
       const cleanName = book.name.replace(/_/g, ' ')
         .replace(/^(Mathematics|Mathematcis|Science|Social\s*Studies?|Social\s*Science|English|Hindi|Sanskrit)\s*\.?\s*/i, '')
@@ -3249,7 +3274,7 @@ async function renderCopies() {
         </div>
         <div class="copy-remarks">
           <div>
-            <div class="copy-remark-label">Student Remark</div>
+            <div class="copy-remark-label">Aarav's Remark</div>
             <textarea class="copy-remark-input" rows="2" placeholder="Why wasn't it completed on time?" onblur="saveStudentRemark('${book.id}', this.value)">${escapeHtml(rec.student_remark || '')}</textarea>
           </div>
           <div>
@@ -3263,7 +3288,7 @@ async function renderCopies() {
         </div>
       </div>`;
     });
-    html += `</div>`;
+    html += `</div></div>`;
   });
 
   container.innerHTML = html;
