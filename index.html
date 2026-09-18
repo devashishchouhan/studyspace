@@ -2253,15 +2253,23 @@ function openBook(id) {
 async function generateFlashcardsForBook(book) {
   if (!book.text_content || book.text_content.length < 100) return;
 
-  const prompt = `You are a CBSE Class 9 teacher. From the following textbook content, generate 15 high-quality flashcards for students.
+  const langInstruction = book.subject === 'Hindi'
+    ? 'Generate all flashcards in Hindi only. Questions and answers must be in Hindi (Devanagari script).'
+    : book.subject === 'Sanskrit'
+    ? 'Generate all flashcards in Sanskrit/Hindi only. Questions and answers must be in Devanagari script as they appear in the textbook.'
+    : 'Generate flashcards in English.';
+
+  const prompt = `You are a CBSE Class 9 ${book.subject} teacher. From the following textbook content, generate 15 high-quality flashcards for students.
+
+${langInstruction}
 
 Subject: ${book.subject}
 Content: ${book.text_content.substring(0, 8000)}
 
-Respond ONLY with valid JSON array, no markdown:
+Respond ONLY with valid JSON array, no markdown, no explanation:
 [{"front": "question/term", "back": "answer/definition"}, ...]
 
-Make questions clear, concise, and exam-relevant. Include definitions, formulas, important facts, and conceptual questions.`;
+Make questions clear, concise, and exam-relevant. Include definitions, important facts, and conceptual questions. Preserve the original language of the textbook exactly.`;
 
   try {
     const res = await fetch(CLAUDE_API, {
@@ -2270,7 +2278,7 @@ Make questions clear, concise, and exam-relevant. Include definitions, formulas,
       body: JSON.stringify({ model: GROQ_MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
-    const text = data?.content?.[0]?.text || '';
+    const text = data?.content?.[0]?.text || data?.choices?.[0]?.message?.content || '';
     const cards = JSON.parse(text.replace(/```json|```/g, '').trim());
 
     for (const card of cards) {
