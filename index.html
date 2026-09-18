@@ -1985,7 +1985,17 @@
       </div>
     </div>
 
+    <!-- TOP ROW: Today's Mission (prominent) + Subject Progress -->
     <div class="grid-2">
+      <!-- TODAY MISSION — always first, always visible -->
+      <div class="section-card" style="border-top:3px solid var(--ca-red)">
+        <div class="section-title">
+          Today's Mission 🎯
+          <span id="sessionStatusBadge"></span>
+        </div>
+        <div id="todayList"></div>
+      </div>
+
       <!-- SUBJECT PROGRESS -->
       <div class="section-card">
         <div class="section-title">
@@ -1994,23 +2004,16 @@
         </div>
         <div class="subject-list" id="subjectProgress"></div>
       </div>
-
-      <!-- TODAY PLAN -->
-      <div class="section-card">
-        <div class="section-title">
-          Today's Mission 🎯
-          <a onclick="openLogModal()">+ Log session</a>
-        </div>
-        <div id="todayList"></div>
-      </div>
     </div>
 
     <div class="grid-2">
-      <!-- STUDY LOG -->
+      <!-- RECENT SESSIONS -->
       <div class="section-card">
-        <div class="section-title">Recent Sessions</div>
+        <div class="section-title">
+          Recent Sessions
+          <span style="font-size:10px;color:var(--text-muted);font-weight:600">🔒 Senior PIN to delete</span>
+        </div>
         <div id="recentSessions"></div>
-        <button class="log-btn" onclick="openLogModal()">+ Log study session</button>
       </div>
 
       <!-- HEATMAP -->
@@ -2666,16 +2669,58 @@ function getTagClass(subject) {
 
 function renderRecentSessions() {
   const container = document.getElementById('recentSessions');
-  const recent = [...sessions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  const recent = [...sessions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 8);
   if (!recent.length) {
-    container.innerHTML = `<div style="font-size:13px;color:var(--text-muted);padding:8px 0">No sessions yet.</div>`;
+    container.innerHTML = `<div style="font-size:13px;color:var(--text-muted);padding:8px 0">No sessions yet. Start your first session!</div>`;
     return;
   }
   container.innerHTML = recent.map(s => `
-    <div class="log-entry">
-      <div class="log-entry-left">${s.topic} <span style="color:var(--text-muted)">· ${s.subject.split(' ')[0]}</span></div>
-      <div class="log-entry-right">${s.duration}m · ${formatDate(s.date)}</div>
+    <div class="log-entry" id="session-row-${s.id}">
+      <div class="log-entry-left">
+        <div style="font-weight:600">${s.topic}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${s.subject?.split(' ')[0] || '—'} ${s.notes ? '· ' + s.notes : ''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="log-entry-right">${s.duration}m · ${formatDate(s.date)}</div>
+        <button onclick="seniorDeleteSession('${s.id}')" title="Senior delete (PIN required)"
+          style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:4px;opacity:0.5;transition:opacity 0.15s"
+          onmouseover="this.style.opacity=1;this.style.color='var(--ca-red)'"
+          onmouseout="this.style.opacity=0.5;this.style.color='var(--text-muted)'">🔒✕</button>
+      </div>
     </div>`).join('');
+}
+
+function seniorDeleteSession(sessionId) {
+  // Require PIN
+  const overlay = document.createElement('div');
+  overlay.className = 'pin-modal-overlay';
+  overlay.id = 'sessionDeletePin';
+  overlay.innerHTML = `<div class="pin-modal">
+    <h3>🔒 Senior Access</h3>
+    <p>Enter PIN to delete this session</p>
+    <input class="pin-input" type="password" maxlength="4" id="delPinInput" placeholder="••••"
+      oninput="if(this.value.length===4)confirmDeleteSession('${sessionId}')">
+    <div class="pin-modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('sessionDeletePin').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmDeleteSession('${sessionId}')">Delete</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('delPinInput')?.focus(), 100);
+}
+
+async function confirmDeleteSession(sessionId) {
+  const val = document.getElementById('delPinInput')?.value;
+  if (val !== SENIOR_PIN) {
+    const inp = document.getElementById('delPinInput');
+    if (inp) { inp.style.borderColor = 'var(--ca-red)'; inp.value = ''; inp.placeholder = 'Wrong PIN'; }
+    return;
+  }
+  document.getElementById('sessionDeletePin')?.remove();
+  sessions = sessions.filter(s => String(s.id) !== String(sessionId));
+  try { await sbFetch(`sessions?id=eq.${sessionId}`, 'DELETE'); } catch(e) {}
+  renderDashboard();
+  showToast('Session deleted ✓', 'success');
 }
 
 function formatDate(d) {
