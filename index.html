@@ -2459,9 +2459,9 @@ async function renderFCSetup() {
 
   // Filter out intro, appendix, chapter 0 books
   function isSkippable(name) {
-    const n = name.toLowerCase();
-    return /intro|appendix|preface|foreword|_0[._\s]|\.0[._\s]|\s0\s/.test(n) ||
-           /\b0\b/.test(n.replace(/[^a-z0-9\s]/g, ' ').trim().split(/\s+/).find(w => /^\d+$/.test(w)) || '');
+    const n = name.toLowerCase().replace(/_/g, ' ');
+    return /\bintro\b|\bappendix\b|\bpreface\b|\bforeword\b/.test(n) ||
+           /\b0\.\b|\bchapter 0\b/.test(n);
   }
 
   const validBooks = books.filter(b => !isSkippable(b.name));
