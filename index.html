@@ -3,32 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StudySpace — Class 9 CBSE</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>Aarav's HQ — Class 9 CBSE</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <style>
   :root {
-    --bg: #0B0F14;
-    --surface: #111827;
-    --card: #1a2233;
-    --card-hover: #1e2740;
-    --border: #1f2937;
-    --border-light: #2d3748;
-    --text: #f1f5f9;
-    --text-muted: #64748b;
-    --text-dim: #94a3b8;
-    --accent: #6366f1;
-    --accent-soft: rgba(99,102,241,0.12);
-    --accent-hover: #818cf8;
+    --bg: #070E1A;
+    --surface: #0D1829;
+    --card: #111F35;
+    --card-hover: #162540;
+    --border: #1B2E4A;
+    --border-light: #243D5E;
+    --text: #EEF3FF;
+    --text-muted: #5A7A9E;
+    --text-dim: #8BAAC8;
+    --accent: #2166C0;
+    --accent-soft: rgba(33,102,192,0.15);
+    --accent-hover: #3B82D4;
+    --border-accent: rgba(33,102,192,0.4);
     --green: #10b981;
     --green-soft: rgba(16,185,129,0.12);
-    --yellow: #f59e0b;
-    --yellow-soft: rgba(245,158,11,0.12);
-    --red: #ef4444;
-    --red-soft: rgba(239,68,68,0.12);
+    --yellow: #FFD700;
+    --yellow-soft: rgba(255,215,0,0.12);
+    --red: #C8102E;
+    --red-soft: rgba(200,16,46,0.12);
+    --ca-red: #C8102E;
+    --ca-gold: #FFD700;
+    --ca-navy: #070E1A;
+    --ca-blue: #2166C0;
     --radius: 14px;
     --radius-sm: 8px;
   }
@@ -56,14 +61,13 @@
 
   .nav-brand {
     display: flex; align-items: center; gap: 10px;
-    font-size: 15px; font-weight: 600; color: var(--text);
+    font-family: 'Bangers', cursive;
+    font-size: 20px; letter-spacing: 2px; color: var(--text);
     text-decoration: none;
   }
 
   .nav-brand .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
+    width: 30px; height: 30px; flex-shrink: 0;
   }
 
   .nav-tabs {
@@ -77,19 +81,20 @@
   .nav-tab {
     padding: 6px 14px;
     border-radius: 7px;
-    font-size: 13px; font-weight: 500;
+    font-size: 12px; font-weight: 700;
     color: var(--text-muted);
     cursor: pointer;
     border: none; background: transparent;
     transition: all 0.15s;
+    letter-spacing: 0.3px;
   }
 
   .nav-tab:hover { color: var(--text-dim); }
 
   .nav-tab.active {
-    background: var(--card);
-    color: var(--text);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    background: var(--ca-red);
+    color: white;
+    box-shadow: 0 1px 3px rgba(200,16,46,0.4);
   }
 
   .nav-right {
@@ -139,6 +144,38 @@
   .page.active { display: block; }
 
   /* DASHBOARD */
+  /* CA HERO */
+  .ca-hero {
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(135deg, rgba(33,102,192,0.08) 0%, rgba(200,16,46,0.05) 100%);
+    border-radius: 16px; padding: 20px 24px; margin-bottom: 16px;
+    border: 1px solid rgba(33,102,192,0.2);
+  }
+  .ca-greeting-sub { font-size: 11px; font-weight: 700; color: var(--ca-blue); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+  .ca-greeting-main { font-family: 'Bangers', cursive; font-size: 36px; color: var(--text); letter-spacing: 2px; line-height: 1.1; margin-bottom: 8px; }
+  .ca-greeting-main span { color: var(--ca-gold); }
+  .ca-greeting-tagline { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+  .ca-shield-big { width: 100px; height: 100px; flex-shrink: 0; }
+
+  .ca-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .ca-kpi-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-top: 3px solid var(--kpi-accent, var(--ca-blue));
+    border-radius: 14px; padding: 14px;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .ca-kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .ca-kpi-cartoon { font-size: 26px; line-height: 1; margin-bottom: 6px; }
+  .ca-kpi-bubble {
+    font-size: 9px; font-weight: 800; color: white;
+    background: var(--kpi-accent, var(--ca-blue));
+    padding: 2px 8px; border-radius: 8px;
+    display: inline-block; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .ca-kpi-value { font-family: 'Bangers', cursive; font-size: 34px; color: var(--text); letter-spacing: 1px; line-height: 1; }
+  .ca-kpi-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+
   .greeting {
     margin: 32px 0 24px;
   }
@@ -1574,17 +1611,22 @@
 <!-- NAV -->
 <nav>
   <div class="nav-brand">
-    <div class="dot"></div>
-    StudySpace
+    <svg class="dot" viewBox="0 0 30 30" fill="none">
+      <circle cx="15" cy="15" r="14" fill="#C8102E" stroke="#EEF3FF" stroke-width="1.5"/>
+      <circle cx="15" cy="15" r="9.5" fill="#EEF3FF" stroke="#EEF3FF" stroke-width="0.5"/>
+      <circle cx="15" cy="15" r="6" fill="#2166C0" stroke="#EEF3FF" stroke-width="0.5"/>
+      <polygon points="15,11 16.5,14 20,14 17.2,16.2 18.2,19.5 15,17.5 11.8,19.5 12.8,16.2 10,14 13.5,14" fill="#FFD700" transform="scale(0.55) translate(12,12)"/>
+    </svg>
+    AARAV'S HQ
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="navigate('dashboard')">Home</button>
     <button class="nav-tab" onclick="navigate('books')">Books</button>
+    <button class="nav-tab" onclick="navigate('copies')">Copies</button>
     <button class="nav-tab" onclick="navigate('quiz')">Quiz</button>
     <button class="nav-tab" onclick="navigate('flashcards')">Cards</button>
-    <button class="nav-tab" onclick="navigate('saved')">Saved</button>
-    <button class="nav-tab" onclick="navigate('copies')">Copies</button>
     <button class="nav-tab" onclick="navigate('doubt')">Ask AI</button>
+    <button class="nav-tab" onclick="navigate('saved')">Saved</button>
   </div>
   <div class="nav-right">
     <div class="streak-badge" id="streakBadge">🔥 0 days</div>
@@ -1596,31 +1638,49 @@
 
   <!-- DASHBOARD -->
   <div class="page active" id="page-dashboard">
-    <div class="greeting">
-      <h1 id="greetingText">Good morning 👋</h1>
-      <p id="greetingDate"></p>
+    <!-- CA Hero Banner -->
+    <div class="ca-hero">
+      <div class="ca-hero-left">
+        <div class="ca-greeting-sub" id="greetingDate"></div>
+        <h1 class="ca-greeting-main" id="greetingText">Good Evening,<br><span>Master Aarav!</span></h1>
+        <div class="ca-greeting-tagline">Ready to assemble your knowledge? 🛡️</div>
+      </div>
+      <div class="ca-shield-big">
+        <svg viewBox="0 0 100 100" fill="none">
+          <circle cx="50" cy="50" r="48" fill="#C8102E" stroke="#EEF3FF" stroke-width="2"/>
+          <circle cx="50" cy="50" r="33" fill="#EEF3FF" stroke="#EEF3FF" stroke-width="1"/>
+          <circle cx="50" cy="50" r="20" fill="#2166C0" stroke="#EEF3FF" stroke-width="1"/>
+          <circle cx="50" cy="50" r="9" fill="#C8102E" stroke="#EEF3FF" stroke-width="1"/>
+          <polygon points="50,40 53,47 61,47 55,52 57.5,59.5 50,55 42.5,59.5 45,52 39,47 47,47" fill="#FFD700"/>
+        </svg>
+      </div>
     </div>
 
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Study Hours</div>
-        <div class="stat-value" id="statHours">0</div>
-        <div class="stat-sub" id="statHoursSub">This week</div>
+    <!-- KPI Cards -->
+    <div class="ca-kpi-grid">
+      <div class="ca-kpi-card" style="--kpi-accent:#2166C0">
+        <div class="ca-kpi-cartoon">🦁</div>
+        <div class="ca-kpi-bubble">Roar! Keep studying!</div>
+        <div class="ca-kpi-value" id="statHours">0.0</div>
+        <div class="ca-kpi-label">Study Hours · This Week</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Topics Done</div>
-        <div class="stat-value" id="statTopics">0</div>
-        <div class="stat-sub">Across all subjects</div>
+      <div class="ca-kpi-card" style="--kpi-accent:#C8102E">
+        <div class="ca-kpi-cartoon">🐭🐱</div>
+        <div class="ca-kpi-bubble">Topics conquered!</div>
+        <div class="ca-kpi-value" id="statTopics">0</div>
+        <div class="ca-kpi-label">Topics Done · All Subjects</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Quiz Score</div>
-        <div class="stat-value" id="statScore">—</div>
-        <div class="stat-sub" id="statScoreSub">Avg accuracy</div>
+      <div class="ca-kpi-card" style="--kpi-accent:#FFD700">
+        <div class="ca-kpi-cartoon">🐉</div>
+        <div class="ca-kpi-bubble">Dragon-level accuracy!</div>
+        <div class="ca-kpi-value" id="statScore">—</div>
+        <div class="ca-kpi-label">Quiz Score · Avg Accuracy</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Books Loaded</div>
-        <div class="stat-value" id="statBooks">0</div>
-        <div class="stat-sub">Ready to use</div>
+      <div class="ca-kpi-card" style="--kpi-accent:#10b981">
+        <div class="ca-kpi-cartoon">🦸</div>
+        <div class="ca-kpi-bubble">Books loaded, hero!</div>
+        <div class="ca-kpi-value" id="statBooks">0</div>
+        <div class="ca-kpi-label">Books Loaded · Ready to use</div>
       </div>
     </div>
 
@@ -1637,7 +1697,7 @@
       <!-- TODAY PLAN -->
       <div class="section-card">
         <div class="section-title">
-          Today's Plan
+          Today's Mission 🎯
           <a onclick="openLogModal()">+ Log session</a>
         </div>
         <div id="todayList"></div>
@@ -2029,7 +2089,7 @@ function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
-  const tabs = ['dashboard','books','quiz','flashcards','saved','copies','doubt'];
+  const tabs = ['dashboard','books','copies','quiz','flashcards','doubt','saved'];
   document.querySelectorAll('.nav-tab')[tabs.indexOf(page)].classList.add('active');
   if (page === 'dashboard') renderDashboard();
   if (page === 'books') renderBooks();
@@ -2043,9 +2103,11 @@ function navigate(page) {
 // ==================== GREETING ====================
 function setGreeting() {
   const h = new Date().getHours();
-  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('greetingText').textContent = `${greet} 👋`;
-  document.getElementById('greetingDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  const greet = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+  const greetEl = document.getElementById('greetingText');
+  if (greetEl) greetEl.innerHTML = `${greet},<br><span>Master Aarav!</span>`;
+  const dateEl = document.getElementById('greetingDate');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 // ==================== DASHBOARD ====================
@@ -2125,9 +2187,10 @@ function renderTodayPlan() {
   const container = document.getElementById('todayList');
   const today = sessions.filter(s => s.date === new Date().toISOString().split('T')[0]);
   if (!today.length) {
-    container.innerHTML = `<div class="empty-state" style="padding:24px 0">
-      <div class="emoji" style="font-size:24px">📋</div>
-      <p>No sessions logged today.<br>Start studying and log your progress!</p>
+    container.innerHTML = `<div style="text-align:center;padding:16px 0">
+      <div style="font-size:32px;margin-bottom:8px">🤖</div>
+      <div style="background:rgba(33,102,192,0.12);border:1px solid rgba(33,102,192,0.25);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:10px;font-style:italic">"Avengers assemble! Log your study session before you start, soldier!"</div>
+      <button class="log-btn" onclick="openLogModal()" style="background:var(--ca-red);color:white;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px">⚡ Log Session</button>
     </div>`;
     return;
   }
