@@ -2747,60 +2747,99 @@ function renderHeatmap() {
 }
 
 // ==================== AUTO SESSION SYSTEM ====================
-const SESSION_INACTIVITY_MS = 4 * 60 * 1000; // 4 min
-const SESSION_POPUP_INTERVAL_MS = 2 * 60 * 1000; // 2 min
+const SESSION_INACTIVITY_MS = 4 * 60 * 1000;
+const SESSION_POPUP_INTERVAL_MS = 2 * 60 * 1000;
+const SESSION_POST_END_DELAY_MS = 10 * 60 * 1000;
+const SESSION_DRAFT_KEY = 'aarav_session_draft';
 
-let activeSession = null; // { startTime, subjects: Set, timerInterval }
+let activeSession = null;
 let inactivityTimer = null;
 let popupTimer = null;
-let sessionPopupShown = false;
+let draftSaveInterval = null;
 
 function startAutoSession() {
   if (activeSession) return;
-
-  // Clear popup reminders
   if (popupTimer) { clearInterval(popupTimer); popupTimer = null; }
-  sessionPopupShown = false;
   closeSRPopup();
 
-  // Init session
-  activeSession = {
-    startTime: Date.now(),
-    subjects: new Set(),
-    timerInterval: null
-  };
-
-  // Track currently selected book's subject
+  activeSession = { startTime: Date.now(), subjects: new Set(), timerInterval: null };
   if (selectedDoubtBook?.subject) activeSession.subjects.add(selectedDoubtBook.subject);
+  activeSession.timerInterval = setInterval(updateSessionTimer, 1000);
 
-  // Start live timer
-  activeSession.timerInterval = setInterval(() => {
-    updateSessionTimer();
-  }, 1000);
-
-  // Start inactivity watcher
   resetInactivityTimer();
   ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
     document.addEventListener(evt, onUserActivity, { passive: true });
   });
+
+  draftSaveInterval = setInterval(saveDraftSession, 60000);
 
   updateSessionTimer();
   renderTodayPlan();
   showToast('Session started! Study hard, soldier! 🛡️', 'success');
 }
 
-function onUserActivity() {
+function saveDraftSession() {
   if (!activeSession) return;
-  resetInactivityTimer();
+  localStorage.setItem(SESSION_DRAFT_KEY, JSON.stringify({
+    startTime: activeSession.startTime,
+    subjects: [...activeSession.subjects],
+    savedAt: Date.now()
+  }));
 }
+
+function clearDraftSession() { localStorage.removeItem(SESSION_DRAFT_KEY); }
+
+function checkForDraftSession() {
+  const raw = localStorage.getItem(SESSION_DRAFT_KEY);
+  if (!raw) return;
+  try {
+    const draft = JSON.parse(raw);
+    const ageMs = Date.now() - draft.savedAt;
+    if (ageMs > 12 * 60 * 60 * 1000) { clearDraftSession(); return; }
+    const mins = Math.max(1, Math.round((draft.savedAt - draft.startTime) / 60000));
+    const subjects = draft.subjects || [];
+    const overlay = document.createElement('div');
+    overlay.className = 'pin-modal-overlay';
+    overlay.id = 'draftRecoveryOverlay';
+    overlay.innerHTML = `<div class="pin-modal" style="max-width:320px">
+      <div style="font-size:28px;margin-bottom:8px">📋</div>
+      <h3 style="color:var(--ca-gold)">Unsaved Session Found!</h3>
+      <p style="margin:8px 0 4px">Looks like you closed the app without saving.</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px"><strong>${mins} min</strong> · ${subjects.join(', ') || 'General Study'}</p>
+      <div class="pin-modal-btns">
+        <button class="btn btn-ghost" onclick="discardDraft()">Discard</button>
+        <button class="btn btn-primary" onclick="recoverDraft(${draft.startTime}, ${JSON.stringify(subjects).replace(/"/g,"'")}, ${mins})">💾 Save It</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+  } catch(e) { clearDraftSession(); }
+}
+
+async function recoverDraft(startTime, subjects, mins) {
+  document.getElementById('draftRecoveryOverlay')?.remove();
+  clearDraftSession();
+  const date = new Date(startTime).toISOString().split('T')[0];
+  const topic = subjects.length ? subjects.join(', ') : 'General Study';
+  const session = { subject: subjects[0] || 'General', topic, duration: mins, date, notes: 'Recovered from unsaved session' };
+  try {
+    const saved = await sbFetch('sessions', 'POST', session);
+    sessions.push(Array.isArray(saved) ? saved[0] : { ...session, id: Date.now(), created_at: new Date().toISOString() });
+  } catch(e) { sessions.push({ ...session, id: Date.now(), created_at: new Date().toISOString() }); }
+  renderDashboard();
+  showToast(`Recovered session saved! ${mins} min ✓`, 'success');
+}
+
+function discardDraft() {
+  document.getElementById('draftRecoveryOverlay')?.remove();
+  clearDraftSession();
+}
+
+function onUserActivity() { if (activeSession) resetInactivityTimer(); }
 
 function resetInactivityTimer() {
   if (inactivityTimer) clearTimeout(inactivityTimer);
   inactivityTimer = setTimeout(() => {
-    if (activeSession) {
-      showToast('No activity detected — auto-saving session!', '');
-      endSession(true);
-    }
+    if (activeSession) { showToast('No activity — auto-saving session!', ''); endSession(true); }
   }, SESSION_INACTIVITY_MS);
 }
 
@@ -2823,22 +2862,21 @@ function trackSubjectInSession(subject) {
 
 async function endSession(auto = false) {
   if (!activeSession) return;
-
   const elapsed = Math.floor((Date.now() - activeSession.startTime) / 1000);
   const durationMins = Math.max(1, Math.round(elapsed / 60));
   const subjects = [...activeSession.subjects];
   const date = new Date().toISOString().split('T')[0];
   const topic = subjects.length ? subjects.join(', ') : 'General Study';
 
-  // Stop timers
   clearInterval(activeSession.timerInterval);
   clearTimeout(inactivityTimer);
+  clearInterval(draftSaveInterval);
+  clearDraftSession();
   ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
     document.removeEventListener(evt, onUserActivity);
   });
   activeSession = null;
 
-  // Save session
   const session = { subject: subjects[0] || 'General', topic, duration: durationMins, date, notes: auto ? 'Auto-saved (inactivity)' : '' };
   try {
     const saved = await sbFetch('sessions', 'POST', session);
@@ -2847,24 +2885,21 @@ async function endSession(auto = false) {
     const local = { ...session, id: Date.now(), created_at: new Date().toISOString() };
     sessions.push(local);
     const ls = JSON.parse(localStorage.getItem('sessions') || '[]');
-    ls.push(local);
-    localStorage.setItem('sessions', JSON.stringify(ls));
+    ls.push(local); localStorage.setItem('sessions', JSON.stringify(ls));
   }
 
   renderDashboard();
   showToast(`Session saved! ${durationMins} min — ${topic} ✓`, 'success');
-
-  // Restart popup reminder
-  startPopupReminder();
+  // Wait 10 min before next popup
+  setTimeout(() => startPopupReminder(), SESSION_POST_END_DELAY_MS);
 }
 
-// Popup reminder system
+// beforeunload — save draft when tab closes
+window.addEventListener('beforeunload', () => { if (activeSession) saveDraftSession(); });
+
 function startPopupReminder() {
   if (popupTimer) clearInterval(popupTimer);
-  popupTimer = setInterval(() => {
-    if (!activeSession) showSessionReminderPopup();
-  }, SESSION_POPUP_INTERVAL_MS);
-  // Show immediately on first load after a short delay
+  popupTimer = setInterval(() => { if (!activeSession) showSessionReminderPopup(); }, SESSION_POPUP_INTERVAL_MS);
   setTimeout(() => { if (!activeSession) showSessionReminderPopup(); }, 3000);
 }
 
@@ -2872,24 +2907,15 @@ function showSessionReminderPopup() {
   if (document.getElementById('srPopup')) return;
   const popup = document.createElement('div');
   popup.id = 'srPopup';
-  popup.style.cssText = `
-    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-    background: var(--card); border: 1px solid rgba(33,102,192,0.4);
-    border-radius: 16px; padding: 16px 18px; max-width: 300px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    animation: slideInPopup 0.3s ease;
-  `;
-  popup.innerHTML = `
-    <style>
-      @keyframes slideInPopup { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    </style>
+  popup.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--card);border:1px solid rgba(33,102,192,0.4);border-radius:16px;padding:16px 18px;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:slideInPopup 0.3s ease';
+  popup.innerHTML = `<style>@keyframes slideInPopup{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}</style>
     <div style="display:flex;align-items:flex-start;gap:10px">
       <div style="font-size:28px;flex-shrink:0">🛡️</div>
       <div>
         <div style="font-family:'Bangers',cursive;font-size:16px;letter-spacing:1px;color:var(--ca-gold);margin-bottom:4px">Hey Master Aarav!</div>
         <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:10px">Don't forget to start your study session! Avengers always track their training. 💪</div>
         <div style="display:flex;gap:6px">
-          <button onclick="startAutoSession()" style="background:var(--ca-red);color:white;border:none;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px">⚡ Start Session</button>
+          <button onclick="startAutoSession()" style="background:var(--ca-red);color:white;border:none;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px">⚡ Start</button>
           <button onclick="closeSRPopup()" style="background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Later</button>
         </div>
       </div>
@@ -2897,9 +2923,7 @@ function showSessionReminderPopup() {
   document.body.appendChild(popup);
 }
 
-function closeSRPopup() {
-  document.getElementById('srPopup')?.remove();
-}
+function closeSRPopup() { document.getElementById('srPopup')?.remove(); }
 
 // ==================== LOG SESSION ====================
 function openLogModal() {
@@ -4419,6 +4443,9 @@ async function init() {
   }
 
   renderDashboard();
+
+  // Check for unsaved draft session from previous tab close
+  setTimeout(checkForDraftSession, 1500);
 
   // Start session popup reminder
   startPopupReminder();
