@@ -2968,7 +2968,7 @@ async function saveSession() {
 // ==================== BOOKS ====================
 async function loadBooks() {
   try {
-    const data = await sbFetch('books?order=created_at.desc');
+    const data = await sbFetch('books?order=created_at.desc&limit=1000');
     books = data || [];
   } catch(e) {
     books = JSON.parse(localStorage.getItem('books') || '[]');
@@ -4433,7 +4433,7 @@ async function init() {
 
   try {
     const [booksData, sessionsData] = await Promise.all([
-      sbFetch('books?order=created_at.desc').catch(() => []),
+      sbFetch('books?order=created_at.desc&limit=1000').catch(() => []),
       sbFetch('sessions?order=created_at.desc').catch(() => [])
     ]);
     books = booksData || [];
