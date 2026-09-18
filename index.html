@@ -2545,7 +2545,9 @@ function navigate(page) {
 // ==================== GREETING ====================
 function setGreeting() {
   const h = new Date().getHours();
-  const greet = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+  const greet = h >= 0 && h < 6 ? 'Hello' :
+                h < 12 ? 'Good Morning' :
+                h < 17 ? 'Good Afternoon' : 'Good Evening';
   const greetEl = document.getElementById('greetingText');
   if (greetEl) greetEl.innerHTML = `${greet},<br><span>Master Aarav!</span>`;
   const dateEl = document.getElementById('greetingDate');
