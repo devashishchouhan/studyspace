@@ -1095,6 +1095,51 @@
     min-height: 0;
   }
 
+  .subject-accordion {
+    border-radius: 6px;
+    margin-bottom: 4px;
+    overflow: hidden;
+    border: 1px solid transparent;
+  }
+
+  .subject-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+  }
+
+  .subject-accordion-header:hover { background: var(--card-hover); color: var(--text-dim); }
+  .subject-accordion-header.open { background: var(--accent-soft); color: var(--accent); border-radius: 6px 6px 0 0; }
+
+  .subject-accordion-arrow {
+    font-size: 10px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .subject-accordion-header.open .subject-accordion-arrow { transform: rotate(90deg); }
+
+  .subject-accordion-books {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 4px 4px 8px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 0 0 6px 6px;
+  }
+
+  .subject-accordion-header.open + .subject-accordion-books { display: flex; }
+
   .book-select-list {
     flex: 1;
     overflow-y: auto;
@@ -1596,17 +1641,8 @@
           <button onclick="toggleBooksSidebar()" id="sidebarToggle" title="Collapse" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1;border-radius:4px" title="Collapse sidebar">‹</button>
         </div>
         <div id="sidebarContent">
-          <select id="doubtSubjectFilter" onchange="renderDoubtBooks()" style="width:100%;background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text);font-size:12px;padding:7px 10px;margin-bottom:10px;font-family:inherit;outline:none;cursor:pointer">
-            <option value="">All Subjects</option>
-            <option value="Mathematics">📐 Mathematics</option>
-            <option value="Science">🔬 Science</option>
-            <option value="Social Studies">🌍 Social Studies</option>
-            <option value="English">📖 English</option>
-            <option value="Hindi">🇮🇳 Hindi</option>
-            <option value="Sanskrit">🕉️ Sanskrit</option>
-          </select>
           <div class="book-select-list" id="doubtBookList">
-            <div style="font-size:13px;color:var(--text-muted);padding:8px">No books uploaded yet</div>
+            <div style="font-size:12px;color:var(--text-muted);padding:8px">No books uploaded yet</div>
           </div>
         </div>
       </div>
@@ -2496,21 +2532,67 @@ function endFlashcards() {
 function renderDoubtBooks() {
   const list = document.getElementById('doubtBookList');
   if (!books.length) {
-    list.innerHTML = `<div style="font-size:13px;color:var(--text-muted);padding:8px">No books uploaded yet</div>`;
+    list.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px">No books uploaded yet</div>`;
     return;
   }
-  const filter = document.getElementById('doubtSubjectFilter')?.value || '';
-  const filtered = filter ? books.filter(b => b.subject === filter) : books;
-  list.innerHTML = `
-    <div class="book-select-item ${!selectedDoubtBook ? 'selected' : ''}" onclick="selectDoubtBook(null)">
-      <div class="book-select-name">🌐 General (Any topic)</div>
-      <div class="book-select-sub">Ask anything</div>
-    </div>
-    ${filtered.map(b => `
-    <div class="book-select-item ${selectedDoubtBook?.id === b.id ? 'selected' : ''}" onclick="selectDoubtBook('${b.id}')">
-      <div class="book-select-name">${getSubjectEmoji(b.subject)} ${b.name.replace(/_/g, ' ')}</div>
-      <div class="book-select-sub">${b.subject}</div>
-    </div>`).join('')}`;
+
+  const SUBJECT_ORDER = ['Mathematics', 'Science', 'Social Studies', 'English', 'Hindi', 'Sanskrit'];
+
+  // Sort books within each subject by name (natural sort for chapter numbers)
+  function naturalSort(a, b) {
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  // Group by subject
+  const grouped = {};
+  books.forEach(b => {
+    const subj = b.subject || 'Other';
+    if (!grouped[subj]) grouped[subj] = [];
+    grouped[subj].push(b);
+  });
+  Object.keys(grouped).forEach(subj => grouped[subj].sort(naturalSort));
+
+  // Ordered subjects
+  const orderedSubjects = [
+    ...SUBJECT_ORDER.filter(s => grouped[s]),
+    ...Object.keys(grouped).filter(s => !SUBJECT_ORDER.includes(s))
+  ];
+
+  // Find which subject is currently selected book's subject
+  const activeSubject = selectedDoubtBook?.subject || null;
+
+  let html = `<div class="book-select-item ${!selectedDoubtBook ? 'selected' : ''}" onclick="selectDoubtBook(null)">
+    <div class="book-select-name">🌐 General (Any topic)</div>
+    <div class="book-select-sub">Ask anything</div>
+  </div>`;
+
+  orderedSubjects.forEach(subject => {
+    const subBooks = grouped[subject];
+    const isOpen = subject === activeSubject;
+    const emoji = getSubjectEmoji(subject);
+    html += `<div class="subject-accordion">
+      <div class="subject-accordion-header ${isOpen ? 'open' : ''}" onclick="toggleSubjectAccordion(this)">
+        <span>${emoji} ${subject}</span>
+        <span class="subject-accordion-arrow">›</span>
+      </div>
+      <div class="subject-accordion-books">
+        ${subBooks.map(b => `
+        <div class="book-select-item ${selectedDoubtBook?.id === b.id ? 'selected' : ''}" onclick="selectDoubtBook('${b.id}')">
+          <div class="book-select-name">${b.name.replace(/_/g, ' ')}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+function toggleSubjectAccordion(header) {
+  // Close all others
+  document.querySelectorAll('.subject-accordion-header.open').forEach(h => {
+    if (h !== header) h.classList.remove('open');
+  });
+  header.classList.toggle('open');
 }
 
 function toggleBooksSidebar() {
