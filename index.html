@@ -2233,7 +2233,7 @@
       <div class="cartoon-card" style="--cc-accent:#FFD700">
         <div class="cartoon-card-emoji">👩</div>
         <div class="cartoon-card-body">
-          <div class="cartoon-card-bubble">Nani/Maa says</div>
+          <div class="cartoon-card-bubble">Dadi/Maa says</div>
           <div class="cartoon-card-text">"Baccha, copies complete karo — PIN se check karenge! 🔒"</div>
         </div>
       </div>
@@ -2623,20 +2623,40 @@ function renderSubjectProgress() {
 function renderTodayPlan() {
   const container = document.getElementById('todayList');
   const today = sessions.filter(s => s.date === new Date().toISOString().split('T')[0]);
-  if (!today.length) {
-    container.innerHTML = `<div style="text-align:center;padding:16px 0">
+
+  let html = '';
+
+  // Show live session timer if active
+  if (activeSession) {
+    html += `<div style="background:rgba(33,102,192,0.1);border:1px solid rgba(33,102,192,0.3);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse-dot 1s infinite"></div>
+          <span style="font-size:11px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:1px">Session Live</span>
+        </div>
+        <button onclick="endSession(false)" style="background:var(--ca-red);color:white;border:none;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase">End ✕</button>
+      </div>
+      <div style="font-family:'Bangers',cursive;font-size:32px;color:var(--text);letter-spacing:2px;line-height:1;margin-bottom:4px" id="sessionTimerDisplay">00:00</div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600">📚 Subjects: <span id="sessionSubjectsDisplay">No subjects yet</span></div>
+    </div>`;
+  }
+
+  if (!today.length && !activeSession) {
+    html += `<div style="text-align:center;padding:16px 0">
       <div style="font-size:32px;margin-bottom:8px">🤖</div>
       <div style="background:rgba(33,102,192,0.12);border:1px solid rgba(33,102,192,0.25);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:10px;font-style:italic">"Avengers assemble! Log your study session before you start, soldier!"</div>
-      <button class="log-btn" onclick="openLogModal()" style="background:var(--ca-red);color:white;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px">⚡ Log Session</button>
+      <button onclick="startAutoSession()" style="background:var(--ca-red);color:white;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px">⚡ Start Session</button>
     </div>`;
-    return;
+  } else if (today.length) {
+    html += today.map(s => `
+      <div class="today-item">
+        <div class="today-check done">✓</div>
+        <div class="today-text">${s.topic}</div>
+        <div class="today-tag ${getTagClass(s.subject)}" style="padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500">${s.subject.split(' ')[0]}</div>
+      </div>`).join('');
   }
-  container.innerHTML = today.map((s, i) => `
-    <div class="today-item">
-      <div class="today-check done">✓</div>
-      <div class="today-text">${s.topic}</div>
-      <div class="today-tag ${getTagClass(s.subject)}" style="padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500">${s.subject.split(' ')[0]}</div>
-    </div>`).join('');
+
+  container.innerHTML = html;
 }
 
 function getTagClass(subject) {
@@ -2679,6 +2699,161 @@ function renderHeatmap() {
     html += `<div class="heatmap-day ${level}" title="${key}: ${mins}min"></div>`;
   }
   container.innerHTML = html;
+}
+
+// ==================== AUTO SESSION SYSTEM ====================
+const SESSION_INACTIVITY_MS = 4 * 60 * 1000; // 4 min
+const SESSION_POPUP_INTERVAL_MS = 2 * 60 * 1000; // 2 min
+
+let activeSession = null; // { startTime, subjects: Set, timerInterval }
+let inactivityTimer = null;
+let popupTimer = null;
+let sessionPopupShown = false;
+
+function startAutoSession() {
+  if (activeSession) return;
+
+  // Clear popup reminders
+  if (popupTimer) { clearInterval(popupTimer); popupTimer = null; }
+  sessionPopupShown = false;
+  closeSRPopup();
+
+  // Init session
+  activeSession = {
+    startTime: Date.now(),
+    subjects: new Set(),
+    timerInterval: null
+  };
+
+  // Track currently selected book's subject
+  if (selectedDoubtBook?.subject) activeSession.subjects.add(selectedDoubtBook.subject);
+
+  // Start live timer
+  activeSession.timerInterval = setInterval(() => {
+    updateSessionTimer();
+  }, 1000);
+
+  // Start inactivity watcher
+  resetInactivityTimer();
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
+    document.addEventListener(evt, onUserActivity, { passive: true });
+  });
+
+  updateSessionTimer();
+  renderTodayPlan();
+  showToast('Session started! Study hard, soldier! 🛡️', 'success');
+}
+
+function onUserActivity() {
+  if (!activeSession) return;
+  resetInactivityTimer();
+}
+
+function resetInactivityTimer() {
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => {
+    if (activeSession) {
+      showToast('No activity detected — auto-saving session!', '');
+      endSession(true);
+    }
+  }, SESSION_INACTIVITY_MS);
+}
+
+function updateSessionTimer() {
+  if (!activeSession) return;
+  const elapsed = Math.floor((Date.now() - activeSession.startTime) / 1000);
+  const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const s = (elapsed % 60).toString().padStart(2, '0');
+  const el = document.getElementById('sessionTimerDisplay');
+  if (el) el.textContent = `${m}:${s}`;
+  const subEl = document.getElementById('sessionSubjectsDisplay');
+  if (subEl) subEl.textContent = activeSession.subjects.size ? [...activeSession.subjects].join(', ') : 'No subjects yet';
+}
+
+function trackSubjectInSession(subject) {
+  if (!activeSession || !subject) return;
+  activeSession.subjects.add(subject);
+  updateSessionTimer();
+}
+
+async function endSession(auto = false) {
+  if (!activeSession) return;
+
+  const elapsed = Math.floor((Date.now() - activeSession.startTime) / 1000);
+  const durationMins = Math.max(1, Math.round(elapsed / 60));
+  const subjects = [...activeSession.subjects];
+  const date = new Date().toISOString().split('T')[0];
+  const topic = subjects.length ? subjects.join(', ') : 'General Study';
+
+  // Stop timers
+  clearInterval(activeSession.timerInterval);
+  clearTimeout(inactivityTimer);
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
+    document.removeEventListener(evt, onUserActivity);
+  });
+  activeSession = null;
+
+  // Save session
+  const session = { subject: subjects[0] || 'General', topic, duration: durationMins, date, notes: auto ? 'Auto-saved (inactivity)' : '' };
+  try {
+    const saved = await sbFetch('sessions', 'POST', session);
+    sessions.push(Array.isArray(saved) ? saved[0] : { ...session, id: Date.now(), created_at: new Date().toISOString() });
+  } catch(e) {
+    const local = { ...session, id: Date.now(), created_at: new Date().toISOString() };
+    sessions.push(local);
+    const ls = JSON.parse(localStorage.getItem('sessions') || '[]');
+    ls.push(local);
+    localStorage.setItem('sessions', JSON.stringify(ls));
+  }
+
+  renderDashboard();
+  showToast(`Session saved! ${durationMins} min — ${topic} ✓`, 'success');
+
+  // Restart popup reminder
+  startPopupReminder();
+}
+
+// Popup reminder system
+function startPopupReminder() {
+  if (popupTimer) clearInterval(popupTimer);
+  popupTimer = setInterval(() => {
+    if (!activeSession) showSessionReminderPopup();
+  }, SESSION_POPUP_INTERVAL_MS);
+  // Show immediately on first load after a short delay
+  setTimeout(() => { if (!activeSession) showSessionReminderPopup(); }, 3000);
+}
+
+function showSessionReminderPopup() {
+  if (document.getElementById('srPopup')) return;
+  const popup = document.createElement('div');
+  popup.id = 'srPopup';
+  popup.style.cssText = `
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    background: var(--card); border: 1px solid rgba(33,102,192,0.4);
+    border-radius: 16px; padding: 16px 18px; max-width: 300px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    animation: slideInPopup 0.3s ease;
+  `;
+  popup.innerHTML = `
+    <style>
+      @keyframes slideInPopup { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    </style>
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="font-size:28px;flex-shrink:0">🛡️</div>
+      <div>
+        <div style="font-family:'Bangers',cursive;font-size:16px;letter-spacing:1px;color:var(--ca-gold);margin-bottom:4px">Hey Master Aarav!</div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:10px">Don't forget to start your study session! Avengers always track their training. 💪</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="startAutoSession()" style="background:var(--ca-red);color:white;border:none;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px">⚡ Start Session</button>
+          <button onclick="closeSRPopup()" style="background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Later</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(popup);
+}
+
+function closeSRPopup() {
+  document.getElementById('srPopup')?.remove();
 }
 
 // ==================== LOG SESSION ====================
@@ -2995,6 +3170,9 @@ async function startQuiz() {
   const subject = quizData.selectedSubject;
   const count = parseInt(document.getElementById('quizCount').value);
   const book = books.find(b => b.subject === subject);
+
+  // Track subject in session
+  if (subject) trackSubjectInSession(subject);
 
   document.getElementById('quizSetup').style.display = 'none';
   document.getElementById('quizActive').style.display = 'block';
@@ -3344,6 +3522,10 @@ function selectDoubtBook(id) {
   const sub = selectedDoubtBook ? `Answering from this book · Class 9 ${selectedDoubtBook.subject}` : 'Select a book or ask anything';
   document.getElementById('chatBookTitle').textContent = title;
   document.getElementById('chatBookSub').textContent = sub;
+
+  // Track subject in active session
+  if (selectedDoubtBook?.subject) trackSubjectInSession(selectedDoubtBook.subject);
+
   renderChapterPreview();
 }
 
@@ -4192,6 +4374,9 @@ async function init() {
   }
 
   renderDashboard();
+
+  // Start session popup reminder
+  startPopupReminder();
 }
 
 init();
