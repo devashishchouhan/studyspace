@@ -1048,28 +1048,29 @@
 
   /* QUIZ PAGE */
   .quiz-setup {
-    max-width: 480px; margin: 48px auto;
-    text-align: center;
+    max-width: 100%;
+    margin: 0;
+    padding: 12px 0;
   }
 
   .quiz-setup h1 {
-    font-size: 24px; font-weight: 700; margin-bottom: 8px;
+    font-size: 22px; font-weight: 700; margin-bottom: 4px;
   }
 
   .quiz-setup p {
-    font-size: 14px; color: var(--text-muted); margin-bottom: 32px;
+    font-size: 13px; color: var(--text-muted); margin-bottom: 16px;
   }
 
   .quiz-options {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-    margin-bottom: 24px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    margin-bottom: 14px;
   }
 
   .quiz-opt {
     background: var(--card);
     border: 2px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px;
+    padding: 12px 14px;
     cursor: pointer;
     text-align: left;
     transition: all 0.15s;
@@ -1079,9 +1080,9 @@
   .quiz-opt:hover { border-color: var(--accent); background: var(--card-hover); }
   .quiz-opt.selected { border-color: var(--accent); background: var(--accent-soft); }
 
-  .quiz-opt .opt-emoji { font-size: 24px; margin-bottom: 8px; display: block; }
-  .quiz-opt .opt-name { font-size: 13px; font-weight: 600; color: var(--text); }
-  .quiz-opt .opt-count { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .quiz-opt .opt-emoji { font-size: 22px; margin-bottom: 6px; display: block; }
+  .quiz-opt .opt-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .quiz-opt .opt-count { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
 
   .quiz-active { max-width: 640px; margin: 32px auto; }
 
@@ -2077,7 +2078,7 @@
 
   <!-- QUIZ -->
   <div class="page" id="page-quiz">
-    <div class="cartoon-strip" style="margin-top:16px">
+    <div class="cartoon-strip" style="margin-top:8px;margin-bottom:10px">
       <div class="cartoon-card" style="--cc-accent:#2166C0">
         <div class="cartoon-card-emoji">⚡</div>
         <div class="cartoon-card-body">
@@ -2112,16 +2113,15 @@
       <h1>⚡ Battle Quiz!</h1>
       <p>Pick your subject and prove your power, hero! 🦸</p>
       <div class="quiz-options" id="quizSubjectPicker"></div>
-      <div class="field">
-        <label>Number of questions</label>
-        <select id="quizCount">
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        <select id="quizCount" style="flex:1;background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text);font-size:13px;padding:8px 12px;font-family:inherit;outline:none">
           <option value="5">5 questions</option>
           <option value="10" selected>10 questions</option>
           <option value="15">15 questions</option>
           <option value="20">20 questions</option>
         </select>
+        <button class="btn btn-primary" id="startQuizBtn" onclick="startQuiz()" disabled style="flex:2;padding:9px">⚡ Generate Quiz</button>
       </div>
-      <button class="btn btn-primary full-width" id="startQuizBtn" onclick="startQuiz()" disabled>Generate Quiz</button>
     </div>
 
     <div id="quizActive" class="quiz-active" style="display:none">
