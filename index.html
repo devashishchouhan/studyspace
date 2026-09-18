@@ -3800,18 +3800,20 @@ async function renderPdfPage(pageNum) {
 
   // Update page counter on scroll
   body.onscroll = () => {
-    const canvases = body.querySelectorAll('.pdf-page-canvas');
+    const canvases = [...body.querySelectorAll('.pdf-page-canvas')];
+    const bodyScrollTop = body.scrollTop;
+    const bodyHeight = body.clientHeight;
+    let currentVisible = 1;
     canvases.forEach(c => {
-      const rect = c.getBoundingClientRect();
-      const bodyRect = body.getBoundingClientRect();
-      if (rect.top >= bodyRect.top - 50 && rect.top < bodyRect.bottom) {
+      if (c.offsetTop <= bodyScrollTop + bodyHeight / 2) {
         const num = parseInt(c.id.replace('pdf-canvas-page-', ''));
-        if (num !== pdfCurrentPage) {
-          pdfCurrentPage = num;
-          if (pageInfo) pageInfo.textContent = `Page ${num} / ${pdfTotalPages}`;
-        }
+        if (num) currentVisible = num;
       }
     });
+    if (currentVisible !== pdfCurrentPage) {
+      pdfCurrentPage = currentVisible;
+      if (pageInfo) pageInfo.textContent = `Page ${pdfCurrentPage} / ${pdfTotalPages}`;
+    }
   };
 }
 
