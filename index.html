@@ -1276,10 +1276,12 @@
 
   .chapter-preview-body {
     flex: 1;
-    display: flex;
-    overflow: hidden;
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
     font-family: 'Inter', sans-serif;
     user-select: text;
+    min-height: 0;
   }
 
   /* TOC sidebar inside preview */
@@ -3688,7 +3690,6 @@ function renderTextView(pageNum) {
 
   body.style.background = '';
   body.style.padding = '16px';
-  body.style.overflowY = 'auto';
 
   const rawText = selectedDoubtBook.text_content;
   const pageNums = [];
@@ -3753,8 +3754,6 @@ async function renderPdfPage(pageNum) {
   // Render all pages scrollably
   if (pageInfo) pageInfo.textContent = `Loading… / ${pdfTotalPages}`;
   body.innerHTML = '';
-  body.style.overflowY = 'auto';
-  body.style.overflowX = 'hidden';
   body.style.padding = '8px';
   body.style.background = '#525659';
 
