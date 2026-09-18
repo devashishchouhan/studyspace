@@ -854,37 +854,59 @@
     border-color: var(--ca-blue);
   }
 
-  /* FLOATING CARTOONS */
-  .page { position: relative; overflow: hidden; }
-
-  .cartoon-float {
-    position: absolute;
-    pointer-events: none;
-    z-index: 0;
-    font-size: 110px;
-    line-height: 1;
-    user-select: none;
-    filter: grayscale(0.2);
-    animation: float-bob 4s ease-in-out infinite;
-  }
-
-  .cartoon-float.p1 { bottom: 40px; right: 60px; opacity: 0.18; animation-delay: 0s; }
-  .cartoon-float.p2 { bottom: 120px; left: 20px; opacity: 0.12; font-size: 80px; animation-delay: 1.5s; }
-  .cartoon-float.p3 { top: 100px; right: 30px; opacity: 0.1; font-size: 70px; animation-delay: 0.8s; }
-  .cartoon-float.p4 { top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; font-size: 220px; animation: none; }
-
-  @keyframes float-bob {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-12px); }
-  }
-
-  .cartoon-float.p2 { animation-name: float-bob-slow; }
-  @keyframes float-bob-slow {
-    0%, 100% { transform: translateY(0px) rotate(-5deg); }
-    50% { transform: translateY(-8px) rotate(5deg); }
-  }
-
   /* ========== END KID THEME ========== */
+
+  /* CARTOON BANNER STRIP */
+  .cartoon-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cartoon-strip.three-col { grid-template-columns: repeat(3, 1fr); }
+  .cartoon-strip.two-col { grid-template-columns: repeat(2, 1fr); }
+
+  .cartoon-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s;
+  }
+
+  .cartoon-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--cc-accent, var(--ca-blue));
+  }
+
+  .cartoon-card:hover { transform: translateY(-2px); }
+
+  .cartoon-card-emoji { font-size: 36px; flex-shrink: 0; }
+
+  .cartoon-card-body { flex: 1; min-width: 0; }
+
+  .cartoon-card-bubble {
+    font-size: 9px; font-weight: 800;
+    color: white;
+    background: var(--cc-accent, var(--ca-blue));
+    padding: 2px 8px; border-radius: 8px;
+    display: inline-block; margin-bottom: 5px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .cartoon-card-text {
+    font-size: 12px; font-weight: 700;
+    color: var(--text-dim); line-height: 1.4;
+  }
 
   .books-header,
   .books-grid,
@@ -2001,10 +2023,36 @@
 
   <!-- BOOKS -->
   <div class="page" id="page-books">
-    <div class="cartoon-float p1">🦾</div>
-    <div class="cartoon-float p2">📚</div>
-    <div class="cartoon-float p3">⚙️</div>
-    <div class="cartoon-float p4">📖</div>
+    <div class="cartoon-strip" style="margin-top:16px">
+      <div class="cartoon-card" style="--cc-accent:#2166C0">
+        <div class="cartoon-card-emoji">🦾</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Iron Man says</div>
+          <div class="cartoon-card-text">"Upload your textbooks. JARVIS will do the rest!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#C8102E">
+        <div class="cartoon-card-emoji">🕷️</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Spidey tip</div>
+          <div class="cartoon-card-text">"With great books comes great knowledge!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#FFD700">
+        <div class="cartoon-card-emoji">⚡</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Thor says</div>
+          <div class="cartoon-card-text">"73 books loaded. Even Asgard is impressed!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#10b981">
+        <div class="cartoon-card-emoji">🤖</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">JARVIS alert</div>
+          <div class="cartoon-card-text">"AI extracts text automatically. Max 100MB per file."</div>
+        </div>
+      </div>
+    </div>
     <div class="books-header">
       <div>
         <h1>📚 Arsenal of Knowledge</h1>
@@ -2024,10 +2072,36 @@
 
   <!-- QUIZ -->
   <div class="page" id="page-quiz">
-    <div class="cartoon-float p1">⚡</div>
-    <div class="cartoon-float p2">🛡️</div>
-    <div class="cartoon-float p3">🏆</div>
-    <div class="cartoon-float p4">💥</div>
+    <div class="cartoon-strip" style="margin-top:16px">
+      <div class="cartoon-card" style="--cc-accent:#2166C0">
+        <div class="cartoon-card-emoji">⚡</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Thor challenges</div>
+          <div class="cartoon-card-text">"Prove your worth in Maths, warrior!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#C8102E">
+        <div class="cartoon-card-emoji">🕷️</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Spidey quizzes</div>
+          <div class="cartoon-card-text">"My spider-senses say you'll ace Science today!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#FFD700">
+        <div class="cartoon-card-emoji">🛡️</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Cap's advice</div>
+          <div class="cartoon-card-text">"I can quiz all day. Can you answer all day?"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#10b981">
+        <div class="cartoon-card-emoji">🦸</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Hero tip</div>
+          <div class="cartoon-card-text">"Pick a subject, choose questions, and FIGHT!"</div>
+        </div>
+      </div>
+    </div>
 
     <div id="quizSetup" class="quiz-setup">
       <h1>⚡ Battle Quiz!</h1>
@@ -2076,10 +2150,29 @@
 
   <!-- FLASHCARDS -->
   <div class="page" id="page-flashcards">
-    <div class="cartoon-float p1">🃏</div>
-    <div class="cartoon-float p2">⚡</div>
-    <div class="cartoon-float p3">🌟</div>
-    <div class="cartoon-float p4">🎴</div>
+    <div class="cartoon-strip three-col" style="margin-top:16px">
+      <div class="cartoon-card" style="--cc-accent:#FFD700">
+        <div class="cartoon-card-emoji">⚡</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Pikachu says</div>
+          <div class="cartoon-card-text">"Pika pika! Flip the card to reveal your power!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#2166C0">
+        <div class="cartoon-card-emoji">🃏</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Card master tip</div>
+          <div class="cartoon-card-text">"Double-click a book to generate cards instantly!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#C8102E">
+        <div class="cartoon-card-emoji">🦸</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Cap's challenge</div>
+          <div class="cartoon-card-text">"Even Avengers use flashcards to remember stuff!"</div>
+        </div>
+      </div>
+    </div>
 
     <div id="fcSetup" class="flashcard-setup">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px">
@@ -2122,10 +2215,36 @@
 
   <!-- DOUBT SOLVER -->
   <div class="page" id="page-copies">
-    <div class="cartoon-float p1">💪</div>
-    <div class="cartoon-float p2">✅</div>
-    <div class="cartoon-float p3">📋</div>
-    <div class="cartoon-float p4">🦸</div>
+    <div class="cartoon-strip" style="margin-top:16px">
+      <div class="cartoon-card" style="--cc-accent:#10b981">
+        <div class="cartoon-card-emoji">💪</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Hulk smashes</div>
+          <div class="cartoon-card-text">"HULK SMASH incomplete copies! Tick that box NOW!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#2166C0">
+        <div class="cartoon-card-emoji">🕵️</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Sherlock watches</div>
+          <div class="cartoon-card-text">"Elementary, Aarav. Upload your copy PDF as proof!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#FFD700">
+        <div class="cartoon-card-emoji">👩</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Dadi/Maa says</div>
+          <div class="cartoon-card-text">"Baccha, copies complete karo — PIN se check karenge! 🔒"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#C8102E">
+        <div class="cartoon-card-emoji">🛡️</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Cap's orders</div>
+          <div class="cartoon-card-text">"A true hero never leaves their homework incomplete!"</div>
+        </div>
+      </div>
+    </div>
     <div class="books-header">
       <div>
         <h1>📋 Aarav's Copy Mission</h1>
@@ -2138,10 +2257,29 @@
   </div>
 
   <div class="page" id="page-saved">
-    <div class="cartoon-float p1">🏆</div>
-    <div class="cartoon-float p2">🌟</div>
-    <div class="cartoon-float p3">🔖</div>
-    <div class="cartoon-float p4">🎖️</div>
+    <div class="cartoon-strip three-col" style="margin-top:16px">
+      <div class="cartoon-card" style="--cc-accent:#FFD700">
+        <div class="cartoon-card-emoji">🏆</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Trophy room</div>
+          <div class="cartoon-card-text">"Every saved answer is a battle won. You're a legend!"</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#2166C0">
+        <div class="cartoon-card-emoji">🤖</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">JARVIS archives</div>
+          <div class="cartoon-card-text">"Your AI explanations, sorted by subject for quick recall."</div>
+        </div>
+      </div>
+      <div class="cartoon-card" style="--cc-accent:#C8102E">
+        <div class="cartoon-card-emoji">🔖</div>
+        <div class="cartoon-card-body">
+          <div class="cartoon-card-bubble">Bookmark hero</div>
+          <div class="cartoon-card-text">"Hit 🔖 on any Buddy answer to save it here forever!"</div>
+        </div>
+      </div>
+    </div>
     <div class="books-header">
       <div>
         <h1>🏆 Knowledge Trophy Room</h1>
