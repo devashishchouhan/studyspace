@@ -1150,48 +1150,51 @@
   .quiz-next.show { display: block; }
 
   /* FLASHCARDS */
-  /* FLASHCARD SUBJECT TABS */
-  .fc-subject-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-
-  .fc-subject-tab {
-    background: var(--card);
-    border: 2px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
-    cursor: pointer;
-    font-family: inherit;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-dim);
-    transition: all 0.15s;
-    text-align: center;
-  }
-
-  .fc-subject-tab:hover { border-color: var(--ca-blue); background: var(--card-hover); }
-  .fc-subject-tab.active { border-color: var(--ca-red); background: rgba(200,16,46,0.08); color: var(--text); }
-
-  .fc-book-card {
-    background: var(--surface);
+  /* FLASHCARD ACCORDION */
+  .fc-accordion-item {
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s;
-    border-left: 3px solid transparent;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    overflow: hidden;
   }
 
-  .fc-book-card:hover { border-color: var(--ca-blue); background: var(--card-hover); }
-  .fc-book-selected { border-color: var(--ca-red) !important; background: rgba(200,16,46,0.08) !important; }
+  .fc-accordion-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: var(--card);
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .fc-accordion-header:hover { background: var(--card-hover); }
+  .fc-accordion-header.open { background: rgba(200,16,46,0.08); border-bottom: 1px solid var(--border); }
+
+  .fc-accordion-arrow {
+    font-size: 16px; color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+
+  .fc-accordion-body {
+    background: var(--surface);
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .fc-chapter-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+    font-family: inherit;
+  }
+
+  .fc-chapter-row:last-child { border-bottom: none; }
+  .fc-chapter-row:hover { background: var(--card-hover); }
+  .fc-chapter-selected { background: rgba(200,16,46,0.08) !important; }
+  .fc-chapter-selected span:nth-child(2) { color: var(--ca-gold); }
 
   .flashcard-setup { max-width: 480px; margin: 48px auto; text-align: center; }
 
@@ -3456,79 +3459,62 @@ async function renderFCSetup() {
     ...Object.keys(grouped).filter(s => !SUBJECT_ORDER.includes(s))
   ];
 
-  // 6 subject tabs in 2 rows of 3
   const activeSubject = fcData.selectedBook?.subject || null;
 
-  let html = `<div class="fc-subject-tabs" id="fcSubjectTabs">`;
-  orderedSubjects.forEach(subject => {
+  container.innerHTML = orderedSubjects.map(subject => {
     const emoji = getSubjectEmoji(subject);
-    const isActive = subject === activeSubject;
-    html += `<button class="fc-subject-tab ${isActive ? 'active' : ''}" onclick="toggleFCSubjectTab(this, '${subject}')">
-      <span style="font-size:18px">${emoji}</span>
-      <span>${subject}</span>
-      <span style="font-size:10px;opacity:0.6">${grouped[subject].length} books</span>
-    </button>`;
-  });
-  html += `</div>`;
+    const subBooks = grouped[subject];
+    const isOpen = subject === activeSubject;
 
-  // Book list panel (shown below tabs when a subject is selected)
-  html += `<div id="fcBookList" style="margin-top:10px"></div>`;
-
-  container.innerHTML = html;
-
-  // If a subject was previously selected, show its books
-  if (activeSubject && grouped[activeSubject]) {
-    renderFCBookList(grouped[activeSubject], activeSubject);
-  }
-}
-
-function toggleFCSubjectTab(btn, subject) {
-  const allTabs = document.querySelectorAll('.fc-subject-tab');
-  const isAlreadyActive = btn.classList.contains('active');
-  allTabs.forEach(t => t.classList.remove('active'));
-
-  if (isAlreadyActive) {
-    document.getElementById('fcBookList').innerHTML = '';
-    return;
-  }
-
-  btn.classList.add('active');
-
-  // Get books for this subject
-  const subjectBooks = books.filter(b => {
-    if (b.subject !== subject) return false;
-    const n = b.name.toLowerCase().replace(/_/g, ' ');
-    return !/\bintro\b|\bappendix\b|\bpreface\b|\bforeword\b/.test(n) && !/\b0\.\b|\bchapter 0\b/.test(n);
-  }).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-
-  renderFCBookList(subjectBooks, subject);
-}
-
-function renderFCBookList(subBooks, subject) {
-  const list = document.getElementById('fcBookList');
-  if (!subBooks.length) {
-    list.innerHTML = `<div style="font-size:13px;color:var(--text-muted);padding:8px">No chapters available for ${subject}.</div>`;
-    return;
-  }
-  list.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-    ${subBooks.map(b => {
+    const chapters = subBooks.map(b => {
       const cleanName = b.name.replace(/_/g, ' ')
         .replace(/^(Mathematics|Mathematcis|Science|Social\s*Studies?|Social\s*Science|English|Hindi|Sanskrit)\s*\.?\s*/i, '')
         .trim();
       const isSelected = fcData.selectedBook?.id === b.id;
-      return `<div class="fc-book-card ${isSelected ? 'fc-book-selected' : ''}"
+      return `<div class="fc-chapter-row ${isSelected ? 'fc-chapter-selected' : ''}"
         onclick="selectFCBook('${b.id}', this)"
         ondblclick="selectFCBook('${b.id}', this); startFlashcards()">
-        <div style="font-size:11px;font-weight:700;color:${isSelected ? 'var(--ca-gold)' : 'var(--text-dim)'};">${cleanName}</div>
+        <span style="font-size:12px">📄</span>
+        <span style="flex:1;font-size:13px;font-weight:600">${cleanName}</span>
+        <span style="font-size:10px;color:var(--text-muted)">Double-click to start</span>
       </div>`;
-    }).join('')}
-  </div>`;
+    }).join('');
+
+    return `<div class="fc-accordion-item">
+      <div class="fc-accordion-header ${isOpen ? 'open' : ''}" onclick="toggleFCAccordion(this)">
+        <span style="font-size:20px">${emoji}</span>
+        <span style="flex:1;font-size:14px;font-weight:700">${subject}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${subBooks.length} chapters</span>
+        <span class="fc-accordion-arrow">›</span>
+      </div>
+      <div class="fc-accordion-body" ${isOpen ? '' : 'style="display:none"'}>${chapters}</div>
+    </div>`;
+  }).join('');
 }
+
+function toggleFCAccordion(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.fc-accordion-arrow');
+  const isOpen = body.style.display !== 'none';
+  // Close all
+  document.querySelectorAll('.fc-accordion-header').forEach(h => {
+    h.classList.remove('open');
+    h.querySelector('.fc-accordion-arrow').style.transform = '';
+    h.nextElementSibling.style.display = 'none';
+  });
+  if (!isOpen) {
+    header.classList.add('open');
+    body.style.display = 'block';
+    arrow.style.transform = 'rotate(90deg)';
+  }
+}
+
+function toggleFCSubjectTab(btn, subject) {} // kept for safety
 
 function selectFCBook(id, el) {
   fcData.selectedBook = books.find(b => b.id === id);
-  document.querySelectorAll('.fc-book-card').forEach(e => e.classList.remove('fc-book-selected'));
-  if (el) el.classList.add('fc-book-selected');
+  document.querySelectorAll('.fc-chapter-row').forEach(e => e.classList.remove('fc-chapter-selected'));
+  if (el) el.classList.add('fc-chapter-selected');
   document.getElementById('startFCBtn').disabled = false;
 }
 
