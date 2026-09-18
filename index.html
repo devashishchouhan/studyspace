@@ -1591,10 +1591,14 @@
   <div class="page" id="page-flashcards">
 
     <div id="fcSetup" class="flashcard-setup">
-      <h1>Flashcards</h1>
-      <p>Pick a book to study</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <h1 style="margin:0">Flashcards</h1>
+          <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted)">Double-click a book to start, or select and click Start</p>
+        </div>
+        <button class="btn btn-primary" id="startFCBtn" onclick="startFlashcards()" disabled style="flex-shrink:0">Start ›</button>
+      </div>
       <div id="fcBookPicker" style="margin-bottom:24px"></div>
-      <button class="btn btn-primary" id="startFCBtn" onclick="startFlashcards()" disabled>Start Flashcards</button>
     </div>
 
     <div id="fcActive" class="flashcard-area" style="display:none">
@@ -2487,7 +2491,7 @@ async function renderFCSetup() {
         const cleanName = b.name.replace(/_/g, ' ')
           .replace(/^(Mathematics|Mathematcis|Science|Social\s*Studies?|Social\s*Science|English|Hindi|Sanskrit)\s*\.?\s*/i, '')
           .trim();
-        return `<div class="quiz-opt ${fcData.selectedBook?.id === b.id ? 'selected' : ''}" style="text-align:left;margin-bottom:6px" onclick="selectFCBook('${b.id}', this)">
+        return `<div class="quiz-opt ${fcData.selectedBook?.id === b.id ? 'selected' : ''}" style="text-align:left;margin-bottom:6px" onclick="selectFCBook('${b.id}', this)" ondblclick="selectFCBook('${b.id}', this); startFlashcards()">
           <div class="opt-name" style="font-size:13px">${cleanName}</div>
         </div>`;
       }).join('')}
