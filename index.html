@@ -854,7 +854,53 @@
     border-color: var(--ca-blue);
   }
 
+  /* FLOATING CARTOONS */
+  .page { position: relative; overflow: hidden; }
+
+  .cartoon-float {
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+    font-size: 110px;
+    line-height: 1;
+    user-select: none;
+    filter: grayscale(0.2);
+    animation: float-bob 4s ease-in-out infinite;
+  }
+
+  .cartoon-float.p1 { bottom: 40px; right: 60px; opacity: 0.18; animation-delay: 0s; }
+  .cartoon-float.p2 { bottom: 120px; left: 20px; opacity: 0.12; font-size: 80px; animation-delay: 1.5s; }
+  .cartoon-float.p3 { top: 100px; right: 30px; opacity: 0.1; font-size: 70px; animation-delay: 0.8s; }
+  .cartoon-float.p4 { top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; font-size: 220px; animation: none; }
+
+  @keyframes float-bob {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+  }
+
+  .cartoon-float.p2 { animation-name: float-bob-slow; }
+  @keyframes float-bob-slow {
+    0%, 100% { transform: translateY(0px) rotate(-5deg); }
+    50% { transform: translateY(-8px) rotate(5deg); }
+  }
+
   /* ========== END KID THEME ========== */
+
+  .books-header,
+  .books-grid,
+  .upload-area,
+  .quiz-setup,
+  .quiz-active,
+  .flashcard-setup,
+  .flashcard-area,
+  .copies-subject-group,
+  .saved-subject-group,
+  .grid-2,
+  .ca-hero,
+  .ca-kpi-grid {
+    position: relative;
+    z-index: 1;
+  }
 
   .books-header {
     display: flex; justify-content: space-between; align-items: flex-end;
@@ -1955,6 +2001,10 @@
 
   <!-- BOOKS -->
   <div class="page" id="page-books">
+    <div class="cartoon-float p1">🦾</div>
+    <div class="cartoon-float p2">📚</div>
+    <div class="cartoon-float p3">⚙️</div>
+    <div class="cartoon-float p4">📖</div>
     <div class="books-header">
       <div>
         <h1>📚 Arsenal of Knowledge</h1>
@@ -1974,6 +2024,10 @@
 
   <!-- QUIZ -->
   <div class="page" id="page-quiz">
+    <div class="cartoon-float p1">⚡</div>
+    <div class="cartoon-float p2">🛡️</div>
+    <div class="cartoon-float p3">🏆</div>
+    <div class="cartoon-float p4">💥</div>
 
     <div id="quizSetup" class="quiz-setup">
       <h1>⚡ Battle Quiz!</h1>
@@ -2022,6 +2076,10 @@
 
   <!-- FLASHCARDS -->
   <div class="page" id="page-flashcards">
+    <div class="cartoon-float p1">🃏</div>
+    <div class="cartoon-float p2">⚡</div>
+    <div class="cartoon-float p3">🌟</div>
+    <div class="cartoon-float p4">🎴</div>
 
     <div id="fcSetup" class="flashcard-setup">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px">
@@ -2064,6 +2122,10 @@
 
   <!-- DOUBT SOLVER -->
   <div class="page" id="page-copies">
+    <div class="cartoon-float p1">💪</div>
+    <div class="cartoon-float p2">✅</div>
+    <div class="cartoon-float p3">📋</div>
+    <div class="cartoon-float p4">🦸</div>
     <div class="books-header">
       <div>
         <h1>📋 Aarav's Copy Mission</h1>
@@ -2076,6 +2138,10 @@
   </div>
 
   <div class="page" id="page-saved">
+    <div class="cartoon-float p1">🏆</div>
+    <div class="cartoon-float p2">🌟</div>
+    <div class="cartoon-float p3">🔖</div>
+    <div class="cartoon-float p4">🎖️</div>
     <div class="books-header">
       <div>
         <h1>🏆 Knowledge Trophy Room</h1>
