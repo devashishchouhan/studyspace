@@ -2905,6 +2905,7 @@ function startPopupReminder() {
 
 function showSessionReminderPopup() {
   if (document.getElementById('srPopup')) return;
+  if (document.getElementById('draftRecoveryOverlay')) return; // Don't show if recovery modal is open
   const popup = document.createElement('div');
   popup.id = 'srPopup';
   popup.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--card);border:1px solid rgba(33,102,192,0.4);border-radius:16px;padding:16px 18px;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:slideInPopup 0.3s ease';
@@ -4447,8 +4448,8 @@ async function init() {
   // Check for unsaved draft session from previous tab close
   setTimeout(checkForDraftSession, 1500);
 
-  // Start session popup reminder
-  startPopupReminder();
+  // Start session popup reminder — delayed so draft recovery shows first
+  setTimeout(startPopupReminder, 5000);
 }
 
 init();
