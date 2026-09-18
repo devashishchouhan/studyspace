@@ -3686,10 +3686,10 @@ function renderTextView(pageNum) {
     return;
   }
 
-  if (pageInfo) pageInfo.textContent = `Page ${pageNum} / ${pdfTotalPages || '?'}`;
+  if (pageInfo) pageInfo.textContent = `Page ${pageNum || 1} / ${pdfTotalPages || '?'}`;
 
   body.style.background = '';
-  body.style.padding = '16px';
+  body.style.padding = '0';
 
   const rawText = selectedDoubtBook.text_content;
   const pageNums = [];
@@ -3698,42 +3698,67 @@ function renderTextView(pageNum) {
   const pageParts = rawText.split(/\[PAGE \d+\]/);
   const pageBlocks = rawText.includes('[PAGE') ?
     pageParts.slice(1).map((part, i) => ({ num: pageNums[i], text: part })) :
-    [{ num: null, text: rawText }];
+    [{ num: 1, text: rawText }];
 
-  const page = pageBlocks.find(p => p.num === pageNum) || pageBlocks[0];
-  if (!page) { body.innerHTML = `<div class="chapter-empty"><p>No text for this page.</p></div>`; return; }
+  function cleanLine(l) {
+    return l.replace(/[\uFFFD\u25A1\u25A0□▯]/g, '').trim();
+  }
 
-  const lines = page.text.split('\n')
-    .map(l => l.replace(/[\uFFFD\u25A1\u25A0□▯]/g, '').trim())
-    .filter(l => l.length > 2 && !/^\d{1,2}$/.test(l));
-
-  // Join broken lines — if a line doesn't end with punctuation and next line
-  // starts lowercase or mid-sentence, merge them
-  const joined = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const next = lines[i + 1];
-    if (next && !/[.!?:]\s*$/.test(line) && /^[a-z,]/.test(next)) {
-      joined.push(line + ' ' + next);
-      i++; // skip next
-    } else {
-      joined.push(line);
+  function processLines(text) {
+    const lines = text.split('\n').map(cleanLine).filter(l => l.length > 2 && !/^\d{1,2}$/.test(l));
+    const joined = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const next = lines[i + 1];
+      if (next && !/[.!?:]\s*$/.test(line) && /^[a-z,]/.test(next)) {
+        joined.push(line + ' ' + next);
+        i++;
+      } else {
+        joined.push(line);
+      }
     }
+    return joined;
   }
 
-  if (!joined.length) {
-    body.innerHTML = `<div class="chapter-empty">
-      <div style="font-size:24px;margin-bottom:10px">🖼️</div>
-      <p style="font-size:13px;color:var(--text-muted)">This page is mostly diagrams — no readable text to show.</p>
-      <p style="font-size:12px;color:var(--text-muted);margin-top:6px">Switch to PDF view to see the visuals.</p>
+  let html = '';
+  pageBlocks.forEach(page => {
+    const joined = processLines(page.text);
+    if (!joined.length) {
+      html += `<div id="text-page-${page.num}" style="padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:8px">Page ${page.num || ''}</div>
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic">🖼️ This page contains diagrams — switch to PDF view.</div>
+      </div>`;
+      return;
+    }
+    html += `<div id="text-page-${page.num}" style="padding:12px 16px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:8px">Page ${page.num || ''}</div>
+      <div style="font-size:13px;line-height:1.9;color:var(--text-dim);user-select:text;cursor:text">${joined.map(l => `<p style="margin:0 0 4px">${escapeHtml(l)}</p>`).join('')}</div>
     </div>`;
-    return;
+  });
+
+  body.innerHTML = html;
+
+  // Scroll to requested page
+  if (pageNum) {
+    setTimeout(() => {
+      const target = document.getElementById(`text-page-${pageNum}`);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   }
 
-  body.innerHTML = `
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:12px">Page ${page.num || ''}</div>
-    <div style="font-size:13px;line-height:1.9;color:var(--text-dim);user-select:text;cursor:text">${joined.map(l => `<p style="margin:0 0 6px">${escapeHtml(l)}</p>`).join('')}</div>
-  `;
+  // Update page counter on scroll
+  body.onscroll = () => {
+    const pages = [...body.querySelectorAll('[id^="text-page-"]')];
+    let current = 1;
+    pages.forEach(p => {
+      if (p.offsetTop <= body.scrollTop + body.clientHeight / 2) {
+        const num = parseInt(p.id.replace('text-page-', ''));
+        if (num) current = num;
+      }
+    });
+    if (pageInfo) pageInfo.textContent = `Page ${current} / ${pdfTotalPages || '?'}`;
+    pdfCurrentPage = current;
+  };
 }
 
 async function renderPdfPage(pageNum) {
